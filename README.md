@@ -1,6 +1,10 @@
 # Global Franchises
 
-A short description of the project.
+![Python](https://img.shields.io/badge/python-3.12-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Poetry](https://img.shields.io/badge/Poetry-1.8.3-brightgreen.svg)
+
+Global Franchises is a data pipeline project that scrapes franchise information from FranServe, parses the HTML data into structured JSON, and upserts it into a Supabase database. It includes scripts for scraping, parsing, uploading, and testing.
 
 ## Setup Instructions
 
