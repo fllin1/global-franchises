@@ -1,0 +1,15 @@
+{
+  "title": "Franchise Keywords Schema",
+  "description": "A schema for structuring a list of keywords extracted from franchise data. The output should be a single JSON object with one key.",
+  "type": "object",
+  "properties": {
+    "keywords": {
+      "type": "array",
+      "description": "A comprehensive list of relevant keywords for the franchise, covering industry, business model, investment level, and key features.",
+      "items": {
+        "type": "string",
+        "description": "A single keyword or keyphrase related to the franchise."
+      }
+    }
+  }
+}

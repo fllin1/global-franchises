@@ -1,0 +1,185 @@
+{
+  "type": "object",
+  "properties": {
+    "franchise_data": {
+      "type": "object",
+      "description": "Contains all data related to the franchise entity.",
+      "properties": {
+        "franchise_name": {
+          "type": "string",
+          "description": "The official name of the franchise."
+        },
+        "primary_category": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The primary(ies) category(ies) of the franchise."
+        },
+        "sub_categories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The sub-category(ies) of the franchise."
+        },
+        "business_model_type": {
+          "type": "string",
+          "description": "Enum-like: 'B2B', 'B2C', 'Both'."
+        },
+        "corporate_address": {
+          "type": "string",
+          "description": "The full corporate office address."
+        },
+        "website_url": {
+          "type": "string",
+          "description": "The main website of the franchise."
+        },
+        "founded_year": {
+          "type": "integer",
+          "description": "The year the company was founded."
+        },
+        "franchised_year": {
+          "type": "integer",
+          "description": "The year the company started franchising."
+        },
+        "franchise_fee_usd": {
+          "type": "integer",
+          "description": "The franchise fee in USD. Extract the primary or lowest fee if a range is given."
+        },
+        "required_cash_investment_usd": {
+          "type": "integer",
+          "description": "The required liquid cash investment in USD."
+        },
+        "total_investment_min_usd": {
+          "type": "integer",
+          "description": "The minimum estimated total investment in USD."
+        },
+        "total_investment_max_usd": {
+          "type": "integer",
+          "description": "The maximum estimated total investment in USD."
+        },
+        "required_net_worth_usd": {
+          "type": "integer",
+          "description": "The required minimum net worth in USD."
+        },
+        "royalty_details_text": {
+          "type": "string",
+          "description": "A description of the royalty fees (e.g., '8%' or '6.5% - 3%')."
+        },
+        "sba_approved": {
+          "type": "boolean",
+          "description": "Is the franchise approved by the SBA?"
+        },
+        "vetfran_member": {
+          "type": "boolean",
+          "description": "Is the franchise a member of the VetFran program?"
+        },
+        "vetfran_discount_details": {
+          "type": "string",
+          "description": "e.g., '20% off franchise fee', '10% off franchise fee', 'No discount'."
+        },
+        "master_franchise_opportunity": {
+          "type": "boolean",
+          "description": "Is a master franchise or area developer opportunity available?"
+        },
+        "is_home_based": {
+          "type": "boolean",
+          "description": "Can the franchise be operated from home?"
+        },
+        "allows_semi_absentee": {
+          "type": "boolean",
+          "description": "Is semi-absentee ownership allowed?"
+        },
+        "allows_absentee": {
+          "type": "boolean",
+          "description": "Is absentee ownership allowed?"
+        },
+        "e2_visa_friendly": {
+          "type": "boolean",
+          "description": "Is the franchise E2 visa friendly?"
+        },
+        "description_text": {
+          "type": "string",
+          "description": "A general description of the franchise, typically under 'Additional Details'. Combine multiple paragraphs into one."
+        },
+        "why_franchise_summary": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "A list of bullet points explaining the benefits of choosing this franchise."
+        },
+        "ideal_candidate_profile_text": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "A list of bullet points describing the ideal franchisee."
+        },
+        "unavailable_states": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "A list of US states where the franchise is NOT available."
+        },
+        "recent_territory_checks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "A list of recent territory availability checks."
+        },
+        "last_updated_from_source": {
+          "type": "string",
+          "description": "The date the listing was last updated on the source, in MM/DD/YYYY format."
+        },
+        "franchises_data": {
+          "type": "object",
+          "description": "Contains specific operational and historical data points, often found in a 'Background' section.",
+          "properties": {
+            "franchised_units_operating": {
+              "type": "string",
+              "description": "The current number of franchisee-owned units. Stored as a string to handle values like '45+' or '330 franchise territories'."
+            },
+            "corporate_units_operating": {
+              "type": "string",
+              "description": "The current number of company-owned units. Stored as a string."
+            },
+            "international_units_operating": {
+              "type": "string",
+              "description": "The current number of international franchise units. Stored as a string."
+            },
+            "total_units": {
+              "type": "string",
+              "description": "The total number of all units (franchised + corporate). Stored as a string."
+            },
+            "average_employees_required": {
+              "type": "string",
+              "description": "The average or required number of employees. Stored as a string to handle ranges like '3-4'."
+            },
+            "projected_new_units_next_12_months": {
+              "type": "string",
+              "description": "The number of new units projected to open in the next 12 months. Stored as a string."
+            }
+          }
+        }
+      },
+      "required": ["franchise_name", "franchises_data"]
+    },
+    "contacts_data": {
+      "type": "array",
+      "description": "A list of contact persons for the franchise.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The contact person's full name."
+          },
+          "phone": {
+            "type": "string",
+            "description": "The contact's phone number."
+          },
+          "email": {
+            "type": "string",
+            "description": "The contact's email address."
+          },
+          "is_primary": {
+            "type": "boolean",
+            "description": "True if this is the main contact, false for alternative contacts."
+          }
+        }
+      }
+    }
+  }
+}

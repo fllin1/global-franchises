@@ -145,7 +145,7 @@ def save_franchise_data(data: BeautifulSoup, file_name: str):
         file_name (str): The name of the file to save the data to.
     """
     with open(os.path.join(EXTERNAL_DATA_DIR, file_name), "w", encoding="utf-8") as f:
-        f.write(data.prettify())
+        f.write(data.prettify(formatter="html"))
 
 
 def main():

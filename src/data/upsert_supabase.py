@@ -4,13 +4,11 @@ This module contains the functions to upload the data to Supabase.
 """
 
 import json
-import os
 
-from dotenv import load_dotenv
 from loguru import logger
-from supabase import Client, create_client
 from tqdm import tqdm
 
+from src.api.config.supabase_config import supabase_client
 from src.config import RAW_DATA_DIR
 
 
@@ -20,17 +18,7 @@ def upload_data_to_supabase():
     to the 'Franchises' and 'Contacts' tables.
     """
     # --- 1. Initialize Supabase Client ---
-    load_dotenv()  # Load environment variables from .env file
-
-    supabase_url = os.environ.get("SUPABASE_URL")
-    supabase_key = os.environ.get("SUPABASE_KEY")
-
-    if not supabase_url or not supabase_key:
-        logger.error("Error: SUPABASE_URL and SUPABASE_KEY must be set in your .env file.")
-        return
-
-    logger.info("Initializing Supabase client...")
-    supabase: Client = create_client(supabase_url, supabase_key)
+    supabase = supabase_client()
 
     # --- 2. Get the list of JSON files to process ---
     json_files = list(RAW_DATA_DIR.glob("*.json"))
@@ -54,7 +42,6 @@ def upload_data_to_supabase():
 
         try:
             # --- Upsert Franchise Data ---
-            # .upsert() will INSERT a new row or UPDATE it if a row with the
             # same 'source_id' (our on_conflict column) already exists.
             franchise_response = (
                 supabase.table("Franchises")
