@@ -11,27 +11,30 @@ The scrapper will:
 - Save the data to a JSON file
 """
 
+from datetime import date
 import os
 from typing import List
-from urllib.parse import quote
 
 from bs4 import BeautifulSoup
 import dotenv
 import requests
-from tqdm import tqdm
 
 from src.config import EXTERNAL_DATA_DIR
 
 dotenv.load_dotenv()
 
-USERNAME = os.getenv("FRANSERVE_EMAIL")
-PASSWORD = os.getenv("FRANSERVE_PASSWORD")
 
-LOGIN_URL = "https://franservesupport.com/Default.asp"
-LOGIN_ACTION = "https://franservesupport.com/process_login.asp"
+class ScrapeConfig:
+    """Configuration for the FranServe scrapper."""
 
-BASE_URL = "https://franservesupport.com/"
-CATALOGUE_BASE_URL = BASE_URL + "directory.asp?ClientID="
+    USERNAME = os.getenv("FRANSERVE_EMAIL")
+    PASSWORD = os.getenv("FRANSERVE_PASSWORD")
+
+    LOGIN_URL = "https://franservesupport.com/Default.asp"
+    LOGIN_ACTION = "https://franservesupport.com/process_login.asp"
+
+    BASE_URL = "https://franservesupport.com/"
+    CATALOGUE_BASE_URL = BASE_URL + "directory.asp?ClientID="
 
 
 def session_login(login_action: str, username: str, password: str) -> requests.Session:
@@ -144,21 +147,12 @@ def save_franchise_data(data: BeautifulSoup, file_name: str):
         data (BeautifulSoup): The data to save.
         file_name (str): The name of the file to save the data to.
     """
-    with open(os.path.join(EXTERNAL_DATA_DIR, file_name), "w", encoding="utf-8") as f:
+    # Get today's date as a string (e.g., '2025-07-29')
+    today_str = date.today().isoformat()
+
+    # Create dated subfolder path
+    dated_dir = EXTERNAL_DATA_DIR / today_str
+    dated_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(dated_dir / file_name, "w", encoding="utf-8") as f:
         f.write(data.prettify(formatter="html"))
-
-
-def main():
-    """
-    Main function to run the scrapper.
-    """
-    session = session_login(LOGIN_ACTION, USERNAME, PASSWORD)
-    franchise_urls = get_all_pages_franchise_urls(session, BASE_URL, CATALOGUE_BASE_URL)
-    for url in tqdm(franchise_urls, total=len(franchise_urls), desc="Scraping franchise data"):
-        data = get_franchise_data(session, url)
-        file_name = quote(url.split("/")[-1], safe="") + ".html"
-        save_franchise_data(data, file_name)
-
-
-if __name__ == "__main__":
-    main()
