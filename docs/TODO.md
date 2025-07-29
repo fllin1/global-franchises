@@ -35,14 +35,14 @@ This to-do list tracks the progress of building the franchise matching platform,
 - [x] **(P1)** Execute Full Data Population
   - **Status:** Completed
   - **Notes:** The parser and uploader scripts have been run on the entire dataset.
-- [ ] **(P0)** Develop Embedding Generation Script
-  - **Status:** Not Started
+- [x] **(P0)** Develop Embedding Generation Script
+  - **Status:** Completed
   - **Notes:** Script will read franchise data (especially `description_text`) from the database, generate embeddings using a chosen model, and save them back to the `franchise_embedding` column.
 - [ ] **(P0)** Test Embedding Generation Script
   - **Status:** Not Started
   - **Action:** Run the script on a small sample of franchises. Verify in the Supabase table that the `franchise_embedding` column is populated with vectors of the correct dimension.
-- [ ] **(P1)** Implement AI Keyword Generation
-  - **Status:** Not Started
+- [x] **(P1)** Implement AI Keyword Generation
+  - **Status:** Completed
   - **Notes:** Feed the `description_text` to an LLM with a prompt to extract relevant keywords as a JSON array. This can be integrated into the embedding or population script.
 - [ ] **(P1)** Test AI Keyword Generation
   - **Status:** Not Started
