@@ -11,15 +11,12 @@ The scrapper will:
 - Save the data to a JSON file
 """
 
-from datetime import date
 import os
 from typing import List
 
 from bs4 import BeautifulSoup
 import dotenv
 import requests
-
-from src.config import EXTERNAL_DATA_DIR
 
 dotenv.load_dotenv()
 
@@ -139,20 +136,14 @@ def get_franchise_data(session: requests.Session, url: str) -> BeautifulSoup:
     return td
 
 
-def save_franchise_data(data: BeautifulSoup, file_name: str):
+def save_franchise_data(data: BeautifulSoup, file_name: str, data_dir: str) -> None:
     """
     Save the data for a franchise to a JSON file.
 
     Args:
         data (BeautifulSoup): The data to save.
         file_name (str): The name of the file to save the data to.
+        data_dir (str): The directory to save the data to.
     """
-    # Get today's date as a string (e.g., '2025-07-29')
-    today_str = date.today().isoformat()
-
-    # Create dated subfolder path
-    dated_dir = EXTERNAL_DATA_DIR / today_str
-    dated_dir.mkdir(parents=True, exist_ok=True)
-
-    with open(dated_dir / file_name, "w", encoding="utf-8") as f:
+    with open(data_dir / file_name, "w", encoding="utf-8") as f:
         f.write(data.prettify(formatter="html"))
