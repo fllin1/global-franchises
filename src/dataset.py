@@ -12,7 +12,11 @@ from loguru import logger
 import pandas as pd
 import typer
 
-from src.api.config.supabase_config import CONTACTS_TABLE, FRANCHISE_TABLE, supabase_client
+from src.api.config.supabase_config import (
+    CONTACTS_TABLE,
+    FRANCHISE_TABLE,
+    supabase_client,
+)
 from src.config import INTERIM_DATA_DIR, RAW_DATA_DIR
 
 app = typer.Typer(pretty_exceptions_enable=False)
@@ -72,14 +76,20 @@ def clean_franchise_data(franchise_dict):
                 f"    🔍 CONVERSION ERROR: {field_name}='{original_value}' -> ERROR: {error}"
             )
         else:
-            logger.debug(f"    ✅ CONVERTED: {field_name}='{original_value}' -> {converted_value}")
+            logger.debug(
+                f"    ✅ CONVERTED: {field_name}='{original_value}' -> {converted_value}"
+            )
 
     # Clean integer fields
     for field in integer_fields:
         if field in cleaned:
             original_value = cleaned[field]
             try:
-                if pd.isna(original_value) or original_value == "" or original_value is None:
+                if (
+                    pd.isna(original_value)
+                    or original_value == ""
+                    or original_value is None
+                ):
                     cleaned[field] = None
                     debug_field_conversion(field, original_value, None)
                 elif isinstance(original_value, str):
@@ -100,7 +110,9 @@ def clean_franchise_data(franchise_dict):
                         else:
                             converted_value = int(float_value)
                             cleaned[field] = converted_value
-                            debug_field_conversion(field, original_value, converted_value)
+                            debug_field_conversion(
+                                field, original_value, converted_value
+                            )
                 elif isinstance(original_value, (int, float)):
                     if isinstance(original_value, float) and math.isnan(original_value):
                         cleaned[field] = None
@@ -117,7 +129,8 @@ def clean_franchise_data(franchise_dict):
             except (ValueError, TypeError) as e:
                 debug_field_conversion(field, original_value, None, str(e))
                 logger.warning(
-                    f"Could not convert {field} value '{original_value}' (type: {type(original_value)}) to integer, setting to None"
+                    f"Could not convert {field} value '{original_value}' "
+                    "(type: {type(original_value)}) to integer, setting to None"
                 )
                 cleaned[field] = None
 
@@ -126,7 +139,11 @@ def clean_franchise_data(franchise_dict):
         if field in cleaned:
             original_value = cleaned[field]
             try:
-                if pd.isna(original_value) or original_value == "" or original_value is None:
+                if (
+                    pd.isna(original_value)
+                    or original_value == ""
+                    or original_value is None
+                ):
                     cleaned[field] = None
                 elif isinstance(original_value, str):
                     if original_value.strip() == "" or original_value.lower() in [
@@ -150,7 +167,8 @@ def clean_franchise_data(franchise_dict):
                     cleaned[field] = float(str(original_value))
             except (ValueError, TypeError):
                 logger.warning(
-                    f"Could not convert {field} value '{original_value}' (type: {type(original_value)}) to float, setting to None"
+                    f"Could not convert {field} value '{original_value}' "
+                    "(type: {type(original_value)}) to float, setting to None"
                 )
                 cleaned[field] = None
 
@@ -201,7 +219,9 @@ def format_jsonl_to_csv(
             data = json.loads(line)
             source_id = data["key"].split("_")[-1]
             try:
-                keywords = data["response"]["candidates"][0]["content"]["parts"][-1]["text"]
+                keywords = data["response"]["candidates"][0]["content"]["parts"][-1][
+                    "text"
+                ]
                 keywords = keywords.replace("```", "")
                 keywords = keywords.replace("`", "'")
                 keywords = keywords.strip()
@@ -223,7 +243,9 @@ def format_jsonl_to_csv(
                 keywords = [keyword.strip() for keyword in keywords]
                 keywords = ", ".join(keywords)
 
-                assert isinstance(keywords, str), f"Keywords is not a string: {keywords}"
+                assert isinstance(
+                    keywords, str
+                ), f"Keywords is not a string: {keywords}"
                 keyword_data = {
                     "source_id": source_id,
                     "keywords": keywords,
@@ -322,7 +344,9 @@ def merge_data(
                 if franchise_contacts and isinstance(franchise_contacts, list):
                     for contact in franchise_contacts:
                         contact["source_id"] = source_id  # Link contact to franchise
-                        contacts_data.append(contact)  # Append individual contact, not list
+                        contacts_data.append(
+                            contact
+                        )  # Append individual contact, not list
             except KeyError:
                 logger.error(f"Error parsing contacts: {franserve_data}")
                 continue
@@ -374,10 +398,14 @@ def update_supabase(
 
     # Read CSV files with explicit data type handling to prevent float conversion issues
     df_franchises = pd.read_csv(
-        franchises_path, keep_default_na=False, na_values=["", "nan", "NaN", "null", "NULL"]
+        franchises_path,
+        keep_default_na=False,
+        na_values=["", "nan", "NaN", "null", "NULL"],
     )
     df_contacts = pd.read_csv(
-        contacts_path, keep_default_na=False, na_values=["", "nan", "NaN", "null", "NULL"]
+        contacts_path,
+        keep_default_na=False,
+        na_values=["", "nan", "NaN", "null", "NULL"],
     )
 
     # Debug: Show data types to understand the CSV reading issue
@@ -405,7 +433,9 @@ def update_supabase(
     # Limit data for test mode
     if test_mode:
         franchises_data = franchises_data[:5]
-        contacts_data = contacts_data[:10]  # More contacts to test relationship matching
+        contacts_data = contacts_data[
+            :10
+        ]  # More contacts to test relationship matching
 
     supabase = supabase_client()
 
@@ -458,7 +488,9 @@ def update_supabase(
             if franchise_response.data and len(franchise_response.data) > 0:
                 # Store mapping of source_id to database id for contacts
                 db_record = franchise_response.data[0]
-                franchise_id_mapping[str(cleaned_franchise["source_id"])] = db_record["id"]
+                franchise_id_mapping[str(cleaned_franchise["source_id"])] = db_record[
+                    "id"
+                ]
                 franchise_success_count += 1
                 logger.info(
                     f"  ✅ SUCCESS: Upserted franchise {franchise_name} (DB ID: {db_record['id']})"
@@ -470,13 +502,16 @@ def update_supabase(
 
         except Exception as e:
             franchise_fail_count += 1
-            logger.error(f"  ❌ ERROR: Failed to upsert franchise {source_id}: {str(e)}")
+            logger.error(
+                f"  ❌ ERROR: Failed to upsert franchise {source_id}: {str(e)}"
+            )
             logger.error(f"  Exception type: {type(e).__name__}")
             continue
 
     logger.info("=" * 60)
     logger.info(
-        f"FRANCHISE PROCESSING COMPLETE: {franchise_success_count} success, {franchise_fail_count} failed"
+        f"FRANCHISE PROCESSING COMPLETE: {franchise_success_count} "
+        f"success, {franchise_fail_count} failed"
     )
     logger.info("=" * 60)
 
@@ -493,7 +528,8 @@ def update_supabase(
         contact_source_id = str(contact.get("source_id", ""))
 
         logger.info(
-            f"[{i}/{len(contacts_data)}] Processing contact: {contact_name} (Franchise ID: {contact_source_id})"
+            f"[{i}/{len(contacts_data)}] Processing contact: "
+            f"{contact_name} (Franchise ID: {contact_source_id})"
         )
 
         try:
@@ -521,25 +557,32 @@ def update_supabase(
             )
 
             # Upsert contact
-            contact_response = supabase.table(CONTACTS_TABLE).upsert(cleaned_contact).execute()
+            contact_response = (
+                supabase.table(CONTACTS_TABLE).upsert(cleaned_contact).execute()
+            )
 
             if contact_response.data and len(contact_response.data) > 0:
                 contact_success_count += 1
                 logger.info(f"  ✅ SUCCESS: Upserted contact {contact_name}")
             else:
                 contact_fail_count += 1
-                logger.error(f"  ❌ FAILED: No data returned for contact {contact_name}")
+                logger.error(
+                    f"  ❌ FAILED: No data returned for contact {contact_name}"
+                )
                 logger.error(f"  Response: {contact_response}")
 
         except Exception as e:
             contact_fail_count += 1
-            logger.error(f"  ❌ ERROR: Failed to upsert contact {contact_name}: {str(e)}")
+            logger.error(
+                f"  ❌ ERROR: Failed to upsert contact {contact_name}: {str(e)}"
+            )
             logger.error(f"  Exception type: {type(e).__name__}")
             continue
 
     logger.info("=" * 60)
     logger.info(
-        f"CONTACT PROCESSING COMPLETE: {contact_success_count} success, {contact_fail_count} failed, {contact_skip_count} skipped"
+        f"CONTACT PROCESSING COMPLETE: {contact_success_count} success, "
+        f"{contact_fail_count} failed, {contact_skip_count} skipped"
     )
     logger.info("=" * 60)
 
@@ -548,17 +591,19 @@ def update_supabase(
     total_success = franchise_success_count + contact_success_count
     total_failed = franchise_fail_count + contact_fail_count
 
-    logger.success(f"FINAL SUMMARY:")
+    logger.success("FINAL SUMMARY:")
     logger.success(f"  📊 Total Records Processed: {total_records}")
     logger.success(f"  ✅ Successful Upserts: {total_success}")
     logger.success(f"  ❌ Failed Upserts: {total_failed}")
     logger.success(f"  ⚠️  Skipped Contacts: {contact_skip_count}")
     logger.success(f"  📈 Success Rate: {(total_success / total_records) * 100:.1f}%")
     logger.success(
-        f"  🏢 Franchises: {franchise_success_count}/{len(franchises_data)} ({(franchise_success_count / len(franchises_data)) * 100:.1f}%)"
+        f"  🏢 Franchises: {franchise_success_count}/{len(franchises_data)} "
+        f"({(franchise_success_count / len(franchises_data)) * 100:.1f}%)"
     )
     logger.success(
-        f"  👥 Contacts: {contact_success_count}/{len(contacts_data)} ({(contact_success_count / len(contacts_data)) * 100:.1f}%)"
+        f"  👥 Contacts: {contact_success_count}/{len(contacts_data)} "
+        f"({(contact_success_count / len(contacts_data)) * 100:.1f}%)"
     )
 
     if franchise_fail_count > 0:
