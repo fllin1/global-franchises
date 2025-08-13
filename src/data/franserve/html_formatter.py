@@ -9,9 +9,6 @@ import re
 from typing import Any, Dict
 
 from bs4 import BeautifulSoup, Tag
-from tqdm import tqdm
-
-from src.config import EXTERNAL_DATA_DIR, RAW_DATA_DIR
 
 # --- Helper Functions ---
 
@@ -374,24 +371,3 @@ def process_franchise_html(franchise_html_content: str) -> Dict[str, Any]:
     structured_data = parse_html_to_structured_dict(soup)
     final_data = format_structured_dict_for_db(structured_data)
     return final_data
-
-
-def main():
-    """
-    Main function to run the scrapper.
-    """
-    html_files = list(EXTERNAL_DATA_DIR.glob("*.html"))
-    for file_path in tqdm(html_files, total=len(html_files), desc="Parsing HTML files"):
-        with open(file_path, "r", encoding="utf-8") as f:
-            html_content = f.read()
-
-        data = process_franchise_html(html_content)
-
-        file_name = file_path.name.replace(".html", ".json")
-        output_path = RAW_DATA_DIR / file_name
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
-
-
-if __name__ == "__main__":
-    main()

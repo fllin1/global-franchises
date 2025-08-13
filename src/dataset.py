@@ -3,9 +3,7 @@
 This module contains the functions to create a dataset from the raw data.
 """
 
-import ast
 import json
-import math
 from pathlib import Path
 
 from loguru import logger
@@ -18,6 +16,7 @@ from src.api.config.supabase_config import (
     supabase_client,
 )
 from src.config import INTERIM_DATA_DIR, RAW_DATA_DIR
+from src.data.utils import clean_contact_data, clean_franchise_data
 
 app = typer.Typer(pretty_exceptions_enable=False)
 
@@ -296,41 +295,6 @@ def merge_data(
         with open(file, "r", encoding="utf-8") as f:
             franserve_data = json.load(f)
             franchise_info = franserve_data["franchise_data"]
-
-            # if "founded_year" in franchise_info and franchise_info["founded_year"]:
-            #     franchise_info["founded_year"] = int(franchise_info["founded_year"])
-            # if "franchised_year" in franchise_info and franchise_info["franchised_year"]:
-            #     franchise_info["franchised_year"] = int(franchise_info["franchised_year"])
-            # if "franchise_fee_usd" in franchise_info and franchise_info["franchise_fee_usd"]:
-            #     franchise_info["franchise_fee_usd"] = int(franchise_info["franchise_fee_usd"])
-            # if (
-            #     "required_cash_investment_usd" in franchise_info
-            #     and franchise_info["required_cash_investment_usd"]
-            # ):
-            #     franchise_info["required_cash_investment_usd"] = int(
-            #         franchise_info["required_cash_investment_usd"]
-            #     )
-            # if (
-            #     "total_investment_min_usd" in franchise_info
-            #     and franchise_info["total_investment_min_usd"]
-            # ):
-            #     franchise_info["total_investment_min_usd"] = int(
-            #         franchise_info["total_investment_min_usd"]
-            #     )
-            # if (
-            #     "total_investment_max_usd" in franchise_info
-            #     and franchise_info["total_investment_max_usd"]
-            # ):
-            #     franchise_info["total_investment_max_usd"] = int(
-            #         franchise_info["total_investment_max_usd"]
-            #     )
-            # if (
-            #     "required_net_worth_usd" in franchise_info
-            #     and franchise_info["required_net_worth_usd"]
-            # ):
-            #     franchise_info["required_net_worth_usd"] = int(
-            #         franchise_info["required_net_worth_usd"]
-            #     )
 
             source_id = franserve_data["source_id"]
 

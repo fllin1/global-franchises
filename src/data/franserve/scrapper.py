@@ -13,25 +13,25 @@ The scrapper will:
 
 import os
 from typing import List
-from urllib.parse import quote
 
 from bs4 import BeautifulSoup
 import dotenv
 import requests
-from tqdm import tqdm
-
-from src.config import EXTERNAL_DATA_DIR
 
 dotenv.load_dotenv()
 
-USERNAME = os.getenv("FRANSERVE_EMAIL")
-PASSWORD = os.getenv("FRANSERVE_PASSWORD")
 
-LOGIN_URL = "https://franservesupport.com/Default.asp"
-LOGIN_ACTION = "https://franservesupport.com/process_login.asp"
+class ScrapeConfig:
+    """Configuration for the FranServe scrapper."""
 
-BASE_URL = "https://franservesupport.com/"
-CATALOGUE_BASE_URL = BASE_URL + "directory.asp?ClientID="
+    USERNAME = os.getenv("FRANSERVE_EMAIL")
+    PASSWORD = os.getenv("FRANSERVE_PASSWORD")
+
+    LOGIN_URL = "https://franservesupport.com/Default.asp"
+    LOGIN_ACTION = "https://franservesupport.com/process_login.asp"
+
+    BASE_URL = "https://franservesupport.com/"
+    CATALOGUE_BASE_URL = BASE_URL + "directory.asp?ClientID="
 
 
 def session_login(login_action: str, username: str, password: str) -> requests.Session:
@@ -136,29 +136,14 @@ def get_franchise_data(session: requests.Session, url: str) -> BeautifulSoup:
     return td
 
 
-def save_franchise_data(data: BeautifulSoup, file_name: str):
+def save_franchise_data(data: BeautifulSoup, file_name: str, data_dir: str) -> None:
     """
     Save the data for a franchise to a JSON file.
 
     Args:
         data (BeautifulSoup): The data to save.
         file_name (str): The name of the file to save the data to.
+        data_dir (str): The directory to save the data to.
     """
-    with open(os.path.join(EXTERNAL_DATA_DIR, file_name), "w", encoding="utf-8") as f:
+    with open(data_dir / file_name, "w", encoding="utf-8") as f:
         f.write(data.prettify(formatter="html"))
-
-
-def main():
-    """
-    Main function to run the scrapper.
-    """
-    session = session_login(LOGIN_ACTION, USERNAME, PASSWORD)
-    franchise_urls = get_all_pages_franchise_urls(session, BASE_URL, CATALOGUE_BASE_URL)
-    for url in tqdm(franchise_urls, total=len(franchise_urls), desc="Scraping franchise data"):
-        data = get_franchise_data(session, url)
-        file_name = quote(url.split("/")[-1], safe="") + ".html"
-        save_franchise_data(data, file_name)
-
-
-if __name__ == "__main__":
-    main()

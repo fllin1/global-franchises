@@ -97,9 +97,7 @@ def prepare_data_for_embeddings(
         with open(file, "r", encoding="utf-8") as f:
             franchise_data = json.load(f)["franchise_data"]
             franchise_data = {
-                k: v
-                for k, v in franchise_data.items()
-                if k in PrepareDataEmbeddings.columns_franchise_data
+                k: v for k, v in franchise_data.items() if k in self.columns_franchise_data
             }
         franchises_batch.append(franchise_data)
 
