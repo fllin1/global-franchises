@@ -17,6 +17,7 @@ interface BackendMatch {
   description_text: string | null;
   similarity: number;
   total_investment_min_usd: number | null;
+  why_narrative?: string;
 }
 
 interface BackendResponse {
@@ -77,8 +78,8 @@ export async function analyzeLead(formData: FormData): Promise<AnalysisResponse>
       description: m.description_text || 'No description available',
       investment_min: m.total_investment_min_usd || 0,
       match_score: Math.round(m.similarity * 100), // Convert float 0.85 -> 85
-      // Fallback narrative since backend doesn't provide it yet
-      why_narrative: `Matched based on semantic relevance to "${rawData.profile.semantic_query}" and investment criteria.`
+      // Use backend narrative if available, otherwise fallback
+      why_narrative: m.why_narrative || `Matched based on semantic relevance to "${rawData.profile.semantic_query}" and investment criteria.`
     }));
 
     return {
@@ -96,4 +97,3 @@ export async function analyzeLead(formData: FormData): Promise<AnalysisResponse>
     throw error; 
   }
 }
-
