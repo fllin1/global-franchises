@@ -14,6 +14,10 @@ class LeadProfile(BaseModel):
         None, 
         description="The preferred location or territory for the franchise."
     )
+    state_code: Optional[str] = Field(
+        None,
+        description="The 2-letter state code derived from the location (e.g., 'TX', 'NY')."
+    )
     semantic_query: str = Field(
         ..., 
         description="A synthesized search query describing the lead's intent, preferences, and background for vector search."
@@ -22,9 +26,11 @@ class LeadProfile(BaseModel):
     @computed_field
     def is_tier_2(self) -> bool:
         """
-        A lead is Tier 2 if they are missing BOTH liquidity and investment_cap information.
+        A lead is Tier 2 if they are missing location OR (liquidity AND investment_cap).
         """
-        return self.liquidity is None and self.investment_cap is None
+        missing_financials = self.liquidity is None and self.investment_cap is None
+        missing_location = self.location is None
+        return missing_financials or missing_location
     
     @property
     def effective_budget(self) -> Optional[int]:

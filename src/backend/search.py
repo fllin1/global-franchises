@@ -33,13 +33,15 @@ async def hybrid_search(profile: LeadProfile, match_count: int = 10) -> List[Dic
     # 2. Call Supabase RPC match_franchises_hybrid
     # Use effective_budget (investment_cap or liquidity) for the max_budget filter
     max_budget = profile.effective_budget
-    logger.info(f"Executing hybrid search in Supabase. Max budget: {max_budget}, match_count: {match_count}")
+    location_filter = profile.state_code
+    logger.info(f"Executing hybrid search in Supabase. Max budget: {max_budget}, Location: {location_filter}, match_count: {match_count}")
     
     params = {
         "query_embedding": query_embedding,
         "match_threshold": 0.3, # Threshold can be tuned
         "match_count": match_count,
-        "max_budget": max_budget # Can be None
+        "max_budget": max_budget, # Can be None
+        "location_filter": location_filter # Can be None
     }
     
     try:
