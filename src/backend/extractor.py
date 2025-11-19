@@ -1,4 +1,5 @@
 import json
+import asyncio
 from typing import Optional
 from google.genai import types
 from loguru import logger
@@ -55,24 +56,44 @@ async def extract_profile_from_notes(notes: str) -> LeadProfile:
         response_schema=schema,
     )
 
-    try:
-        response = generate(
-            client=CLIENT,
-            model=MODEL_PRO,
-            parts=[types.Part(text=prompt)],
-            generate_content_config=generate_content_config
-        )
-        
-        if not response.text:
-            logger.error("Gemini returned empty response")
-            raise ValueError("Failed to extract profile: Empty response from LLM")
+    retries = 3
+    for attempt in range(retries):
+        try:
+            response = generate(
+                client=CLIENT,
+                model=MODEL_PRO,
+                parts=[types.Part(text=prompt)],
+                generate_content_config=generate_content_config
+            )
             
-        data = json.loads(response.text)
-        logger.info(f"Extracted profile data: {data}")
-        
-        return LeadProfile(**data)
-        
-    except Exception as e:
-        logger.error(f"Error extracting profile with Gemini: {e}")
-        # Fallback or re-raise depending on requirements. For now, re-raise.
-        raise e
+            if not response.text:
+                logger.error("Gemini returned empty response")
+                raise ValueError("Failed to extract profile: Empty response from LLM")
+                
+            data = json.loads(response.text)
+            logger.info(f"Extracted profile data: {data}")
+            
+            return LeadProfile(**data)
+            
+        except Exception as e:
+            error_msg = str(e) or repr(e)
+            logger.error(f"Error extracting profile with Gemini (Attempt {attempt+1}): {error_msg}")
+            
+            # Retry on Overload, Timeout, or Empty Response
+            is_transient = (
+                "503" in error_msg or 
+                "overloaded" in error_msg.lower() or 
+                "deadline" in error_msg.lower() or
+                "AssertionError" in error_msg or
+                "Empty response" in error_msg
+            )
+
+            if is_transient and attempt < retries - 1:
+                wait_time = 2 ** attempt
+                logger.warning(f"Transient error detected, retrying in {wait_time} seconds...")
+                await asyncio.sleep(wait_time)
+            else:
+                if not is_transient or attempt == retries - 1:
+                    raise e
+    
+    raise Exception("Failed to extract profile after retries")

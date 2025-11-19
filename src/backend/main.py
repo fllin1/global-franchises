@@ -6,6 +6,7 @@ from loguru import logger
 from src.backend.extractor import extract_profile_from_notes
 from src.backend.search import hybrid_search
 from src.backend.models import LeadProfile
+from src.backend.narrator import generate_match_narratives
 
 app = FastAPI(title="Franchise Broker Co-Pilot API")
 
@@ -19,6 +20,7 @@ class FranchiseMatch(BaseModel):
     description_text: Optional[str]
     similarity: float
     total_investment_min_usd: Optional[int]
+    why_narrative: Optional[str] = None # Added field
 
 class AnalyzeLeadResponse(BaseModel):
     status: str # "complete" or "incomplete"
@@ -56,15 +58,22 @@ async def analyze_lead(request: AnalyzeLeadRequest):
             # 3. Run Hybrid Search
             raw_matches = await hybrid_search(profile, match_count=10)
             
+            # 4. Generate Narratives (Batch)
+            narratives = await generate_match_narratives(profile, raw_matches)
+
             # Convert to Pydantic models
             for m in raw_matches:
+                # Get narrative for this ID, or None if generation failed/skipped
+                narrative = narratives.get(m['id'])
+                
                 matches.append(FranchiseMatch(
                     id=m['id'],
                     franchise_name=m['franchise_name'],
                     primary_category=m.get('primary_category'),
                     description_text=m.get('description_text'),
                     similarity=m['similarity'],
-                    total_investment_min_usd=m.get('total_investment_min_usd')
+                    total_investment_min_usd=m.get('total_investment_min_usd'),
+                    why_narrative=narrative
                 ))
 
         return AnalyzeLeadResponse(
