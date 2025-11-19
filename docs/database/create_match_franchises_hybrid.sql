@@ -2,7 +2,7 @@
 create or replace function match_franchises_hybrid (
   query_embedding vector(1536),
   match_threshold float,
-  match_count int,
+  match_count int default 10,
   max_budget int default null
 )
 returns table (

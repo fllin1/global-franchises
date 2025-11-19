@@ -13,7 +13,7 @@ from src.api.config.supabase_config import supabase_client
 from src.api.openai_text_embedding_3_small import generate_text_embedding_3_small
 
 
-def search_franchises(query: str, match_count: int = 5) -> List[Dict]:
+def search_franchises(query: str, match_count: int = 10) -> List[Dict]:
     """
     Searches for franchises matching the query using vector similarity.
     """
@@ -40,7 +40,7 @@ def search_franchises(query: str, match_count: int = 5) -> List[Dict]:
 def main():
     parser = argparse.ArgumentParser(description="Search for franchises using AI embeddings.")
     parser.add_argument("query", type=str, help="The natural language search query")
-    parser.add_argument("--limit", type=int, default=5, help="Number of results to return")
+    parser.add_argument("--limit", type=int, default=10, help="Number of results to return")
     
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)

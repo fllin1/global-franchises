@@ -4,7 +4,7 @@ from src.api.config.supabase_config import supabase_client
 from src.api.openai_text_embedding_3_small import generate_text_embedding_3_small
 from src.backend.models import LeadProfile
 
-async def hybrid_search(profile: LeadProfile, match_count: int = 5) -> List[Dict[str, Any]]:
+async def hybrid_search(profile: LeadProfile, match_count: int = 10) -> List[Dict[str, Any]]:
     """
     Performs a hybrid search (vector + SQL filter) for franchises matching the lead profile.
     
@@ -33,7 +33,7 @@ async def hybrid_search(profile: LeadProfile, match_count: int = 5) -> List[Dict
     # 2. Call Supabase RPC match_franchises_hybrid
     # Use effective_budget (investment_cap or liquidity) for the max_budget filter
     max_budget = profile.effective_budget
-    logger.info(f"Executing hybrid search in Supabase. Max budget: {max_budget}")
+    logger.info(f"Executing hybrid search in Supabase. Max budget: {max_budget}, match_count: {match_count}")
     
     params = {
         "query_embedding": query_embedding,
@@ -44,7 +44,9 @@ async def hybrid_search(profile: LeadProfile, match_count: int = 5) -> List[Dict
     
     try:
         response = supabase_client().rpc("match_franchises_hybrid", params).execute()
-        return response.data
+        results = response.data
+        logger.info(f"Hybrid search returned {len(results)} results (requested {match_count})")
+        return results
     except Exception as e:
         logger.error(f"Supabase search failed: {e}")
         raise e

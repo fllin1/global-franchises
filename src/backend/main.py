@@ -54,7 +54,7 @@ async def analyze_lead(request: AnalyzeLeadRequest):
         else:
             logger.info(f"Lead identified as Tier 1. Budget: {profile.effective_budget}")
             # 3. Run Hybrid Search
-            raw_matches = await hybrid_search(profile, match_count=5)
+            raw_matches = await hybrid_search(profile, match_count=10)
             
             # Convert to Pydantic models
             for m in raw_matches:
