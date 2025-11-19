@@ -1,92 +1,93 @@
-from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+import uvicorn
 from loguru import logger
 
-from src.backend.extractor import extract_profile_from_notes
-from src.backend.search import hybrid_search
 from src.backend.models import LeadProfile
+from src.backend.extractor import extract_profile_from_notes
+from src.backend.search import hybrid_search, search_franchises_by_state
 from src.backend.narrator import generate_match_narratives
 
-app = FastAPI(title="Franchise Broker Co-Pilot API")
+app = FastAPI(title="Franchise Matcher API")
+
+# CORS configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class AnalyzeLeadRequest(BaseModel):
     notes: str
 
-class FranchiseMatch(BaseModel):
-    id: int
-    franchise_name: str
-    primary_category: Optional[str]
-    description_text: Optional[str]
-    similarity: float
-    total_investment_min_usd: Optional[int]
-    why_narrative: Optional[str] = None # Added field
+@app.get("/")
+async def health_check():
+    return {"status": "ok", "service": "franchise-matcher-backend"}
 
-class AnalyzeLeadResponse(BaseModel):
-    status: str # "complete" or "incomplete"
-    profile: LeadProfile
-    matches: List[FranchiseMatch] = []
-    coaching_questions: List[str] = []
-
-@app.post("/analyze-lead", response_model=AnalyzeLeadResponse)
+@app.post("/analyze-lead")
 async def analyze_lead(request: AnalyzeLeadRequest):
     """
-    Analyzes broker notes to extract a lead profile and either finds matching franchises 
-    (if Tier 1) or provides coaching questions (if Tier 2/incomplete).
+    Analyzes lead notes, extracts profile, and finds matching franchises.
     """
     try:
-        logger.info("Analyzing lead from notes...")
-        # 1. Parse notes to get profile
+        logger.info(f"Analyzing lead with notes length: {len(request.notes)}")
+        
+        # 1. Extract Profile
         profile = await extract_profile_from_notes(request.notes)
         
-        matches = []
-        coaching_questions = []
-        status = "complete"
-
-        # 2. Logic Branch
-        if profile.is_tier_2:
-            logger.info("Lead identified as Tier 2 (Incomplete Profile)")
-            status = "incomplete"
-            # Generate coaching questions based on missing data
-            if profile.liquidity is None and profile.investment_cap is None:
-                coaching_questions.append("Could you please provide your available liquid capital (cash) or maximum investment budget?")
+        # 2. Search for Matches
+        matches = await hybrid_search(profile, match_count=6)
+        
+        # 3. Generate Narratives
+        narratives = await generate_match_narratives(profile, matches)
+        
+        # 4. Construct Response
+        # Add narratives to matches
+        enriched_matches = []
+        for m in matches:
+            m_id = m.get('id')
+            m['why_narrative'] = narratives.get(m_id, "Matched based on profile criteria.")
+            enriched_matches.append(m)
             
-            coaching_questions.append("Are you open to exploring other franchise opportunities outside of your initial inquiry?")
-            
-        else:
-            logger.info(f"Lead identified as Tier 1. Budget: {profile.effective_budget}")
-            # 3. Run Hybrid Search
-            raw_matches = await hybrid_search(profile, match_count=10)
-            
-            # 4. Generate Narratives (Batch)
-            narratives = await generate_match_narratives(profile, raw_matches)
+        # Determine status
+        # Note: frontend expects "complete" or "incomplete" (mapped to tier_1/tier_2)
+        # logic in actions.ts: rawData.status === 'complete' ? 'tier_1' : 'tier_2'
+        status = "incomplete" if profile.is_tier_2 else "complete"
+        
+        # Placeholder for coaching questions (could be another LLM call)
+        coaching_questions = [
+            "What is your timeline for starting a business?",
+            "Have you ever owned a business before?",
+            "How will you finance this investment?"
+        ]
 
-            # Convert to Pydantic models
-            for m in raw_matches:
-                # Get narrative for this ID, or None if generation failed/skipped
-                narrative = narratives.get(m['id'])
-                
-                matches.append(FranchiseMatch(
-                    id=m['id'],
-                    franchise_name=m['franchise_name'],
-                    primary_category=m.get('primary_category'),
-                    description_text=m.get('description_text'),
-                    similarity=m['similarity'],
-                    total_investment_min_usd=m.get('total_investment_min_usd'),
-                    why_narrative=narrative
-                ))
-
-        return AnalyzeLeadResponse(
-            status=status,
-            profile=profile,
-            matches=matches,
-            coaching_questions=coaching_questions
-        )
+        return {
+            "status": status,
+            "profile": profile.model_dump(),
+            "matches": enriched_matches,
+            "coaching_questions": coaching_questions
+        }
 
     except Exception as e:
-        logger.error(f"Error processing lead: {e}")
+        logger.error(f"Error in analyze_lead: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/franchises/by-location")
+async def get_franchises_by_location(state_code: str = Query(..., min_length=2, max_length=2)):
+    """
+    Returns franchises available in a specific state.
+    """
+    try:
+        logger.info(f"Fetching franchises for state: {state_code}")
+        results = await search_franchises_by_state(state_code)
+        return results
+    except Exception as e:
+        logger.error(f"Error in get_franchises_by_location: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("src.backend.main:app", host="0.0.0.0", port=8000, reload=True)

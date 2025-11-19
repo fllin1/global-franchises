@@ -7,6 +7,8 @@ import { MatchCard } from '@/components/MatchCard';
 import { CoachingCard } from '@/components/CoachingCard';
 import { AnalysisResponse } from '@/types';
 
+import Link from 'next/link';
+
 export default function Dashboard() {
   const [isPending, startTransition] = useTransition();
   const [response, setResponse] = useState<AnalysisResponse | null>(null);
@@ -29,11 +31,21 @@ export default function Dashboard() {
       {/* Left Panel: Input (35%) */}
       <section className="w-full md:w-[35%] bg-white border-r border-slate-200 p-6 flex flex-col h-screen sticky top-0">
         <div className="mb-6">
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-indigo-600" />
-            Broker Co-Pilot
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">AI-Powered Lead Matching</p>
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-indigo-600" />
+              Broker Co-Pilot
+            </h1>
+          </div>
+          <p className="text-sm text-slate-500 mt-1 mb-4">AI-Powered Lead Matching</p>
+          
+          <Link 
+            href="/territory" 
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-50 text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-100 hover:border-slate-300 transition-all mb-2"
+          >
+            <MapPin className="w-4 h-4 text-slate-500" />
+            Explore Territories
+          </Link>
         </div>
 
         <form action={handleSubmit} className="flex-1 flex flex-col">

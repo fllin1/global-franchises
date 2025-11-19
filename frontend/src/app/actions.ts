@@ -1,6 +1,6 @@
 'use server';
 
-import { AnalysisResponse, FranchiseMatch, TierStatus, LeadProfile } from '@/types';
+import { AnalysisResponse, FranchiseMatch, TierStatus, LeadProfile, TerritoryFranchise } from '@/types';
 
 // Types matching the ACTUAL Backend Response
 interface BackendLeadProfile {
@@ -95,5 +95,25 @@ export async function analyzeLead(formData: FormData): Promise<AnalysisResponse>
   } catch (error) {
     console.error('Error analyzing lead:', error);
     throw error; 
+  }
+}
+
+export async function searchFranchisesByLocation(stateCode: string): Promise<TerritoryFranchise[]> {
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/franchises/by-location?state_code=${stateCode}`, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API Error ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data as TerritoryFranchise[];
+  } catch (error) {
+    console.error('Error fetching franchises by location:', error);
+    throw error;
   }
 }

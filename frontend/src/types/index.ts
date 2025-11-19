@@ -28,3 +28,11 @@ export interface AnalysisResponse {
   matches?: FranchiseMatch[];
 }
 
+export interface TerritoryFranchise {
+  id: number;
+  franchise_name: string;
+  primary_category: string;
+  total_investment_min_usd: number;
+  availability_status: 'Available' | 'Limited' | 'Not Available';
+  description_text?: string;
+}
