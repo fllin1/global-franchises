@@ -133,9 +133,29 @@ def clean_email_html(html: str, *, keep_links: bool = True) -> str:
 
     # Drop footer/legal/unsubscribe blocks
     for node in list(soup.find_all(string=FOOTER_NOISE_RE)):
-        block = node.find_parent(["footer", "table", "div", "section", "p"])
-        if block:
-            block.decompose()
+        # NavigableString objects need special handling - get parent directly
+        try:
+            # Get the parent Tag and walk up the tree to find matching block
+            parent = getattr(node, 'parent', None)
+            if parent is None:
+                continue
+            
+            # Walk up the parent chain to find matching block
+            block = None
+            current = parent
+            target_tags = {"footer", "table", "div", "section", "p"}
+            
+            while current is not None:
+                if isinstance(current, Tag) and current.name in target_tags:
+                    block = current
+                    break
+                current = getattr(current, 'parent', None)
+            
+            if block:
+                block.decompose()
+        except (AttributeError, TypeError):
+            # If node doesn't have parent attribute or parent chain is broken, skip it
+            continue
 
     # 2) Light structural normalization
     for br in soup.find_all("br"):
