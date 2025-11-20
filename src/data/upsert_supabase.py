@@ -42,9 +42,18 @@ def upload_data_to_supabase():
 
         try:
             # --- Upsert Franchise Data ---
+            # Add metadata
+            from datetime import datetime
+            franchise_info["last_scraped_at"] = datetime.utcnow().isoformat()
+
+            # Remove category from franchise_info if it's not a column in franchises table directly 
+            # (Actually primary_category IS a column in franchises based on previous SQL, so we keep it)
+            # But we also want to populate the relational tables.
+            primary_category = franchise_info.get("primary_category")
+            
             # same 'source_id' (our on_conflict column) already exists.
             franchise_response = (
-                supabase.table("Franchises")
+                supabase.table("franchises")
                 .upsert(
                     franchise_info,
                     on_conflict="source_id",  # This requires the UNIQUE constraint we set
@@ -58,6 +67,22 @@ def upload_data_to_supabase():
             # Get the primary key ('id') of the franchise we just inserted/updated
             franchise_db_id = franchise_response.data[0]["id"]
 
+            # --- Handle Categories Relation ---
+            if primary_category:
+                # 1. Ensure Category exists
+                import re
+                cat_slug = re.sub(r'[^a-z0-9]+', '-', primary_category.lower()).strip('-')
+                
+                cat_payload = {"name": primary_category, "slug": cat_slug}
+                cat_res = supabase.table("categories").upsert(cat_payload, on_conflict="name").select().execute()
+                
+                if cat_res.data:
+                    category_id = cat_res.data[0]["id"]
+                    
+                    # 2. Link in franchise_categories
+                    fc_payload = {"franchise_id": franchise_db_id, "category_id": category_id}
+                    supabase.table("franchise_categories").upsert(fc_payload).execute()
+
             # --- Upsert Contacts Data ---
             if contacts_info:
                 # First, add the foreign key 'franchise_id' to each contact record
@@ -66,10 +91,10 @@ def upload_data_to_supabase():
 
                 # A safe way to handle contacts is to delete existing ones for the franchise
                 # and then insert the new list. This handles removed contacts correctly.
-                supabase.table("Contacts").delete().eq("franchise_id", franchise_db_id).execute()
+                supabase.table("contacts").delete().eq("franchise_id", franchise_db_id).execute()
 
                 # Insert the new list of contacts
-                supabase.table("Contacts").insert(contacts_info).execute()
+                supabase.table("contacts").insert(contacts_info).execute()
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error(f"\n--- ERROR processing {file_path.name} ---")

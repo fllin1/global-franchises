@@ -223,6 +223,13 @@ def format_structured_dict_for_db(structured_data: Dict[str, Any]) -> Dict[str, 
     middle_col = layout.get("middle_col", {})
     right_col = layout.get("right_col", {})
 
+    # Extract Category
+    # Assuming "Category" or "Industry" is in the middle column
+    franchise_data["primary_category"] = middle_col.get("category") or middle_col.get("industry")
+    
+    # Generate Slug
+    franchise_data["slug"] = slugify(franchise_data["franchise_name"])
+
     # Extract Corporate Address
     # It might be split across multiple lines, so we reassemble it.
     address_lines = []

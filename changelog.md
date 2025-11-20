@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2025-11-20] - Database Cleanup
+
+### Removed
+- **Unused Tables**: Dropped the unused `Leads` table (capital L) to avoid confusion with the active `leads` table.
+
+### Changed
+- **Database Schema**:
+  - Renamed `Contacts` table to `contacts` to match standard naming conventions.
+  - Normalized `primary_category` in `franchises` table (converted JSON strings to plain text).
+  - Populated missing `slug` values for all franchises using `franchise_name`.
+- **Backend Code**:
+  - Updated `src/data/upsert_supabase.py` to reference the renamed `contacts` table.
+
+## [2025-11-20] - Database Schema Refactor
+
+### Changed
+- **Database Schema**:
+  - Refactored database schema to standard naming conventions (`refactor_schema_v2.sql`).
+  - Renamed `Franchises` table to `franchises`.
+  - Normalized categories into `categories` and `franchise_categories` tables.
+  - Added `lead_matches` table for robust match tracking.
+  - Added metadata columns (`slug`, `source_url`, `last_scraped_at`, `is_active`) to `franchises`.
+- **Backend Logic**:
+  - Updated `LeadProfile` and added `Franchise` / `Category` Pydantic models in `src/backend/models.py`.
+  - Updated `upsert_supabase.py` to handle new schema and insert categories relationally.
+  - Enhanced `html_formatter.py` to extract `primary_category` and generate `slug` for franchises.
+  - Updated `match_franchises_hybrid` and `get_franchises_by_state` SQL functions to use new table structure.
+
 ## [2025-11-20] - Broker Dashboard Evolution
 
 ### Added

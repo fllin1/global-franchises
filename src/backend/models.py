@@ -1,6 +1,32 @@
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field, computed_field
+
+class Category(BaseModel):
+    id: int
+    name: str
+    slug: str
+    created_at: datetime
+
+class Franchise(BaseModel):
+    id: int
+    franchise_name: str
+    primary_category: str
+    description_text: Optional[str]
+    total_investment_min_usd: Optional[int]
+    image_url: Optional[str]
+    source_url: Optional[str]
+    last_scraped_at: Optional[datetime]
+    slug: Optional[str]
+    is_active: bool = True
+    
+    # Relational data
+    # In DB these are separate tables, but API might return them nested
+    categories: Optional[List[Category]] = []
+    
+    # JSONB legacy support (optional)
+    sub_categories: Optional[List[str]] = []
+    unavailable_states: Optional[List[str]] = []
 
 class LeadProfile(BaseModel):
     candidate_name: Optional[str] = Field(
