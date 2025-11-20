@@ -1,9 +1,10 @@
 'use server';
 
-import { AnalysisResponse, FranchiseMatch, TierStatus, LeadProfile, TerritoryFranchise } from '@/types';
+import { AnalysisResponse, FranchiseMatch, TierStatus, LeadProfile, TerritoryFranchise, Lead } from '@/types';
 
 // Types matching the ACTUAL Backend Response
 interface BackendLeadProfile {
+  candidate_name: string | null;
   liquidity: number | null;
   investment_cap: number | null;
   location: string | null;
@@ -66,6 +67,7 @@ export async function analyzeLead(formData: FormData): Promise<AnalysisResponse>
     }
 
     const profile: LeadProfile = {
+      candidate_name: rawData.profile.candidate_name,
       liquidity: rawData.profile.liquidity,
       location: rawData.profile.location,
       state_code: rawData.profile.state_code,
@@ -118,4 +120,94 @@ export async function searchFranchisesByLocation(stateCode: string): Promise<Ter
     console.error('Error fetching franchises by location:', error);
     throw error;
   }
+}
+
+// --- NEW ACTIONS for Leads CRUD ---
+
+export async function getLeads(): Promise<Lead[]> {
+  try {
+    const response = await fetch('http://127.0.0.1:8000/api/leads/', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Failed to fetch leads');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching leads:', error);
+    throw error;
+  }
+}
+
+export async function createLead(formData: FormData): Promise<Lead> {
+  const notes = formData.get('notes');
+  if (!notes || typeof notes !== 'string') throw new Error('Invalid notes');
+
+  try {
+    const response = await fetch('http://127.0.0.1:8000/api/leads/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes }),
+    });
+    
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Failed to create lead: ${error}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating lead:', error);
+    throw error;
+  }
+}
+
+export async function getLead(id: number): Promise<Lead> {
+    try {
+        const response = await fetch(`http://127.0.0.1:8000/api/leads/${id}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Failed to fetch lead');
+        return await response.json();
+    } catch (error) {
+        console.error(`Error fetching lead ${id}:`, error);
+        throw error;
+    }
+}
+
+export async function deleteLead(id: number): Promise<void> {
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/leads/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete lead');
+  } catch (error) {
+    console.error(`Error deleting lead ${id}:`, error);
+    throw error;
+  }
+}
+
+export async function getFranchiseDetail(id: number): Promise<any> {
+    try {
+        const response = await fetch(`http://127.0.0.1:8000/api/franchises/${id}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Failed to fetch franchise');
+        return await response.json();
+    } catch (error) {
+        console.error(`Error fetching franchise ${id}:`, error);
+        throw error;
+    }
+}
+
+export async function getLeadMatches(id: number): Promise<FranchiseMatch[]> {
+    try {
+        const response = await fetch(`http://127.0.0.1:8000/api/leads/${id}/matches`, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Failed to fetch matches');
+        const data = await response.json();
+        
+        // Map to FranchiseMatch interface
+        return data.map((m: any) => ({
+            id: String(m.id),
+            name: m.franchise_name,
+            description: m.description_text || 'No description available',
+            investment_min: m.total_investment_min_usd || 0,
+            match_score: Math.round(m.similarity * 100),
+            why_narrative: m.why_narrative
+        }));
+    } catch (error) {
+        console.error(`Error fetching matches for lead ${id}:`, error);
+        throw error;
+    }
 }

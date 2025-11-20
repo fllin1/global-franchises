@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2025-11-20] - Broker Dashboard Evolution
+
+### Added
+- **Persistent Lead Management**:
+  - Implemented `leads` table schema for storing profiles and notes (`docs/database/create_leads_table.sql`).
+  - Created Leads CRUD API (`src/backend/leads.py`).
+  - Added `Lead` and `LeadCreate` models to backend.
+- **Franchise Deep Dive**:
+  - Added `GET /api/franchises/{id}` endpoint for full FDD data (`src/backend/franchises.py`).
+  - Implemented `MatchDetailModal` in frontend to display deep insights.
+- **Dashboard UI**:
+  - Created `DashboardLayout` with persistent `Sidebar` navigation.
+  - Implemented `LeadsPage` (List View) with status filtering (`frontend/src/app/leads/page.tsx`).
+  - Implemented `LeadDetailPage` (Workbench) with Profile Editor and Match Analysis (`frontend/src/app/leads/[id]/page.tsx`).
+  - Created "New Lead" ingestion flow (`frontend/src/app/leads/new/page.tsx`).
+  - Updated `DashboardHome` with high-level metrics and quick actions.
+
+### Changed
+- **Backend Architecture**:
+  - Refactored `main.py` to use modular routers (`leads_router`, `franchises_router`).
+  - Updated `LeadProfile` model to include `candidate_name`.
+  - Enhanced `extractor.py` to extract candidate names from notes.
+- **Frontend**:
+  - Updated `MatchCard` to support click interactions.
+  - Refactored `actions.ts` to support persistent lead operations (`getLeads`, `createLead`, `deleteLead`).
+
 ## [2025-11-20] - Changelog Documentation & Cursor Rules
 
 ### Added

@@ -26,11 +26,12 @@ async def extract_profile_from_notes(notes: str) -> LeadProfile:
     "{notes}"
     
     You need to extract/generate the following:
-    1. liquidity: The specific amount of liquid capital (cash) they have available to invest. Return as an integer (USD).
-    2. investment_cap: The maximum total investment budget they stated (e.g. "Max $200k"). Return as an integer (USD).
-    3. location: The preferred location or territory. Return as a string (e.g. "Austin, Texas").
-    4. state_code: The 2-letter ISO state code for the preferred location (e.g. "TX", "NY", "CA"). If multiple, pick the primary one.
-    5. semantic_query: A synthesized, natural language search query that captures the essence of what the lead is looking for. This will be used for vector search against franchise descriptions. Include their background, interests, preferred business model (e.g. semi-absentee, owner-operator), and industry preferences if available. Make it descriptive.
+    1. candidate_name: The name of the candidate if mentioned (e.g. "John Doe").
+    2. liquidity: The specific amount of liquid capital (cash) they have available to invest. Return as an integer (USD).
+    3. investment_cap: The maximum total investment budget they stated (e.g. "Max $200k"). Return as an integer (USD).
+    4. location: The preferred location or territory. Return as a string (e.g. "Austin, Texas").
+    5. state_code: The 2-letter ISO state code for the preferred location (e.g. "TX", "NY", "CA"). If multiple, pick the primary one.
+    6. semantic_query: A synthesized, natural language search query that captures the essence of what the lead is looking for. This will be used for vector search against franchise descriptions. Include their background, interests, preferred business model (e.g. semi-absentee, owner-operator), and industry preferences if available. Make it descriptive.
     
     If a value is not explicitly stated or cannot be reasonably inferred, return null.
     
@@ -41,6 +42,7 @@ async def extract_profile_from_notes(notes: str) -> LeadProfile:
     schema = {
         "type": "OBJECT",
         "properties": {
+            "candidate_name": {"type": "STRING", "nullable": True},
             "liquidity": {"type": "INTEGER", "nullable": True},
             "investment_cap": {"type": "INTEGER", "nullable": True},
             "location": {"type": "STRING", "nullable": True},

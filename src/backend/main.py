@@ -10,7 +10,14 @@ from src.backend.extractor import extract_profile_from_notes
 from src.backend.search import hybrid_search, search_franchises_by_state
 from src.backend.narrator import generate_match_narratives
 
+from src.backend.leads import router as leads_router
+from src.backend.franchises import router as franchises_router
+
 app = FastAPI(title="Franchise Matcher API")
+
+# Include Routers
+app.include_router(leads_router)
+app.include_router(franchises_router)
 
 # CORS configuration
 app.add_middleware(
@@ -74,19 +81,6 @@ async def analyze_lead(request: AnalyzeLeadRequest):
 
     except Exception as e:
         logger.error(f"Error in analyze_lead: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/franchises/by-location")
-async def get_franchises_by_location(state_code: str = Query(..., min_length=2, max_length=2)):
-    """
-    Returns franchises available in a specific state.
-    """
-    try:
-        logger.info(f"Fetching franchises for state: {state_code}")
-        results = await search_franchises_by_state(state_code)
-        return results
-    except Exception as e:
-        logger.error(f"Error in get_franchises_by_location: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

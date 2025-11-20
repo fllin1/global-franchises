@@ -1,7 +1,12 @@
 from typing import Optional
+from datetime import datetime
 from pydantic import BaseModel, Field, computed_field
 
 class LeadProfile(BaseModel):
+    candidate_name: Optional[str] = Field(
+        None,
+        description="The name of the candidate extracted from the notes."
+    )
     liquidity: Optional[int] = Field(
         None, 
         description="The extracted liquid capital amount in USD. If missing, the lead is considered Tier 2."
@@ -39,3 +44,24 @@ class LeadProfile(BaseModel):
         Prefers investment_cap, falls back to liquidity.
         """
         return self.investment_cap if self.investment_cap is not None else self.liquidity
+
+class Lead(BaseModel):
+    id: int
+    candidate_name: Optional[str]
+    notes: str
+    profile_data: LeadProfile
+    matches: Optional[list] = []
+    qualification_status: str
+    workflow_status: str
+    created_at: datetime
+    updated_at: datetime
+
+class LeadCreate(BaseModel):
+    notes: str
+
+class LeadUpdate(BaseModel):
+    candidate_name: Optional[str] = None
+    notes: Optional[str] = None
+    profile_data: Optional[LeadProfile] = None
+    qualification_status: Optional[str] = None
+    workflow_status: Optional[str] = None

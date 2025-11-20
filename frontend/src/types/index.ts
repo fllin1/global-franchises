@@ -3,11 +3,24 @@
 export type TierStatus = "tier_1" | "tier_2";
 
 export interface LeadProfile {
+  candidate_name?: string | null;
   liquidity: number | null; // The hard constraint
   location: string | null;  // The location filter
   state_code?: string | null; // The inferred state code
   semantic_query: string;   // The intent for vector search
   extracted_tags?: string[]; // e.g. ["Absentee", "Fitness", "High Budget"]
+}
+
+export interface Lead {
+  id: number;
+  candidate_name?: string | null;
+  notes: string;
+  profile_data: LeadProfile;
+  matches?: FranchiseMatch[];
+  qualification_status: TierStatus;
+  workflow_status: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface FranchiseMatch {

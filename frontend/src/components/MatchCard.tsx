@@ -4,9 +4,10 @@ import { Building2, DollarSign, TrendingUp, CheckCircle2 } from 'lucide-react';
 interface MatchCardProps {
   match: FranchiseMatch;
   targetState?: string | null;
+  onClick?: () => void;
 }
 
-export function MatchCard({ match, targetState }: MatchCardProps) {
+export function MatchCard({ match, targetState, onClick }: MatchCardProps) {
   const isHighMatch = match.match_score >= 90;
   const isMediumMatch = match.match_score >= 80 && match.match_score < 90;
   
@@ -17,7 +18,12 @@ export function MatchCard({ match, targetState }: MatchCardProps) {
     : 'bg-slate-100 text-slate-800';
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5 mb-4 hover:shadow-md transition-shadow">
+    <div 
+        onClick={onClick}
+        className={`bg-white rounded-lg border border-slate-200 shadow-sm p-5 mb-4 transition-all ${
+            onClick ? 'cursor-pointer hover:shadow-md hover:border-indigo-200' : ''
+        }`}
+    >
       <div className="flex justify-between items-start mb-3">
         <div>
           <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
