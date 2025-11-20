@@ -1,0 +1,95 @@
+# Cursor Rules for FranchisesGlobal Project
+
+## Changelog Maintenance Rules
+
+### CRITICAL: Always Update Changelog
+
+**Every time you make changes to the codebase, you MUST update `changelog.md` immediately.**
+
+### Changelog Format Requirements
+
+1. **Date Format**: Use `[YYYY-MM-DD]` format for all date entries (e.g., `[2025-11-20]`)
+
+2. **Entry Structure**:
+   - New entries go at the top, right after `## [Unreleased]` section
+   - If today's date doesn't exist, create a new date section: `## [YYYY-MM-DD] - Brief Description`
+   - If today's date already exists, add to that section
+
+3. **Categorization**: Always categorize changes using these sections:
+   - `### Added` - New features, endpoints, components, functions, tables, etc.
+   - `### Changed` - Modifications to existing functionality
+   - `### Fixed` - Bug fixes and error resolutions
+   - `### Removed` - Deprecated or deleted features
+
+4. **Entry Format**:
+   - Use bullet points (`-`) for all entries
+   - Group related changes under **bold headers** (e.g., `- **Feature Name**:`)
+   - Include file paths in backticks: `` `path/to/file.py` ``
+   - Use nested bullets (2 spaces) for sub-items
+   - Be descriptive: explain WHAT was changed and WHY it matters
+
+5. **Required Information**:
+   - File paths for all modified/new files
+   - Function/component/endpoint names
+   - Database changes (tables, functions, migrations)
+   - API endpoints with full paths
+   - Component names for frontend changes
+
+### Example Format
+
+```markdown
+## [2025-11-20] - Feature Name
+
+### Added
+- **Feature Category**:
+  - Implemented new feature X (`src/path/to/file.py`).
+  - Added `/api/endpoint` endpoint for Y functionality.
+  - Created `ComponentName` component (`frontend/src/components/Component.tsx`).
+
+### Changed
+- **Module Name**:
+  - Enhanced function X to support Y.
+  - Updated default value from A to B.
+
+### Fixed
+- Fixed bug description in `src/path/to/file.py`.
+- Resolved issue with X that was causing Y.
+```
+
+### When to Update Changelog
+
+Update the changelog when you:
+- Add new files, functions, endpoints, components, or features
+- Modify existing functionality
+- Fix bugs or errors
+- Add or modify database schemas/functions
+- Update dependencies or configurations
+- Refactor code that changes behavior
+- Add tests or documentation
+- Remove deprecated features
+
+### Changelog Update Process
+
+1. **Before committing**: Review all changes made
+2. **Identify changes**: Categorize as Added/Changed/Fixed/Removed
+3. **Update changelog**: Add entries following the format above
+4. **Verify**: Ensure all significant changes are documented
+5. **Commit**: Include changelog update in the same commit
+
+### Prohibited Actions
+
+- ❌ Never skip updating the changelog
+- ❌ Never use vague descriptions like "updated code" or "fixed stuff"
+- ❌ Never forget to include file paths
+- ❌ Never mix dates or use incorrect date formats
+- ❌ Never delete changelog entries without user approval
+
+### Additional Project Rules
+
+- Always write tests first, then code, then adapt until tests pass
+- Always check the database for proper context before making changes
+- Always append changes per day in `changelog.md` with a clean summarized timeline
+- Never delete the database - follow all database safety protocols
+- Always ask follow-up questions if relevant information is missing
+- Always state the plan before executing changes that affect data or structure
+

@@ -4,42 +4,151 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2025-11-20] - Changelog Documentation & Cursor Rules
+
+### Added
+- Comprehensive changelog documenting all project features, enhancements, and fixes.
+- Created `.cursorrules` file with mandatory changelog maintenance rules to ensure all changes are properly documented in the correct format.
+
+## [2025-11-19] - Territory Explorer, Lead Analysis & Search Enhancements
+
 ### Added
 - **Territory Explorer**:
-  - Implemented a new interactive map interface for searching franchises by state (`frontend/src/app/territory/page.tsx`).
+  - Implemented interactive map interface for searching franchises by state (`frontend/src/app/territory/page.tsx`).
   - Added `/api/franchises/by-location` endpoint to backend for fetching franchises by state code.
-  - Integrated `TerritoryMap`, `TerritorySearch`, and `TerritoryFranchiseList` components.
+  - Created `TerritoryMap`, `TerritorySearch`, and `TerritoryFranchiseList` components for enhanced UX.
+  - Added `get_franchises_by_state` database function for efficient state-based franchise queries.
 
 - **Lead Analysis & Narratives**:
   - Added `/analyze-lead` endpoint to analyze lead notes and return matches with personalized narratives.
   - Implemented `generate_match_narratives` in `src/backend/narrator.py` using Gemini to generate "why this fits" explanations for each match.
   - Created `extract_profile_from_notes` to parse unstructured lead data into a structured `LeadProfile`.
+  - Enhanced lead analysis response to include optional backend narrative for matches.
 
-- **Database**:
+- **Database Enhancements**:
   - Added `territory_checks` table for tracking franchise availability by territory.
   - Added `match_franchises_hybrid` function for cosine similarity search combined with keyword matching.
-  - Added migration scripts for territory checks and franchise state search (`docs/database/`).
+  - Added `match_franchises_by_cosine_similarity` function for enhanced search capabilities.
+  - Created migration scripts for territory checks and franchise state search (`docs/database/`).
 
-- **ETL & Integrations**:
-  - Implemented GHL (GoHighLevel) conversation and message extraction pipeline.
-  - Added HTML cleaning and formatting for better text extraction from franchise data.
-  - Added keyword extraction and embedding generation for franchise profiles.
+- **Frontend**:
+  - Initial Next.js frontend setup with TypeScript, Tailwind CSS, and ESLint.
+  - Created `MatchCard` and `CoachingCard` components for displaying franchise matches.
+  - Implemented lead analysis UI with franchise matching display.
 
 ### Changed
 - **Search Logic**:
-  - Enhanced `hybrid_search` to support improved matching criteria and increased default match count.
+  - Enhanced `hybrid_search` to support improved matching criteria.
+  - Updated default `match_count` to 10 in hybrid search functions and related queries for improved search results.
   - Refactored extraction logic for better modularity and testing.
 
 ### Fixed
-- **Bug Fixes**:
-  - Fixed HTML cleaning function to handle footer noise better.
-  - Resolved issues in feature extraction tests.
-  - Updated `.gitignore` to exclude documentation references and unnecessary files.
+- Fixed HTML cleaning function to handle footer noise better in email content.
+- Resolved issues in feature extraction tests.
+- Updated `.gitignore` to exclude documentation references and unnecessary files.
+- Improved Jupyter notebook execution counts and output structures for better data handling.
 
-## [2024-11-19] - Initial Backend & ETL Setup
+## [2025-08-16] - Bug Fixes
+
+### Fixed
+- Fixed mail message parsing issue with `None` parent in GHL message cleaning pipeline.
+- Enhanced `clean_messages_body.py` to better handle edge cases in message parsing.
+
+## [2025-08-13] - GHL Integration Merge
+
+### Changed
+- Merged `feature/etl` branch into `master` with complete GHL integration.
+
+## [2025-08-10] - GoHighLevel (GHL) Integration
 
 ### Added
-- Initial project structure for backend (FastAPI) and frontend (Next.js).
-- Basic database schema for franchises and leads.
-- Scraper and HTML formatter for Franserve data.
+- **GHL Conversation Pipeline**:
+  - Implemented GHL conversation and message extraction pipeline (`src/ghl/get_messages.py`).
+  - Added HTML cleaning and formatting utilities for GHL message bodies (`src/ghl/utils/clean_messages_body.py`).
+  - Created Jupyter notebook for GHL conversation analysis (`notebooks/2.1-ghl-conversations.ipynb`).
 
+- **GHL Data Loading**:
+  - Implemented GHL data loading to Supabase (`src/ghl/load_ghl_to_supabase.py`).
+  - Added database schema for GHL tables (`docs/database/create_ghl_tables.sql`).
+  - Created pipeline for loading conversation data into database.
+
+## [2025-07-31] - Extraction Bug Fixes & Tests
+
+### Fixed
+- Fixed bugs in feature extraction logic.
+- Improved file manager functionality.
+
+### Added
+- Added comprehensive tests for file manager (`tests/extract/test_file_manager.py`).
+- Enhanced extraction functions with better error handling.
+
+## [2025-07-29] - Data Extraction Reorganization
+
+### Changed
+- Reorganized data extraction modules for better structure and maintainability.
+- Refactored extraction functions into modular components (`src/data/functions/extract.py`, `src/data/functions/file_manager.py`).
+- Updated README with clearer project structure and documentation.
+- Moved HTML formatter improvements and keyword extraction logic.
+
+### Removed
+- Removed deprecated modeling and plotting modules.
+- Cleaned up unused utility functions.
+
+## [2025-07-27] - ETL Pipeline Implementation
+
+### Added
+- **Franserve Scraping & Processing**:
+  - Implemented web scraper for Franserve franchise data (`src/data/franserve/scrapper.py`).
+  - Added HTML formatter with manual and LLM-based formatting (`src/data/franserve/html_formatter.py`).
+  - Created HTML to prompt conversion utilities (`src/data/franserve/html_to_prompt.py`).
+
+- **Keyword Extraction & Embeddings**:
+  - Implemented keyword extraction using Gemini (`src/data/nlp/genai_keywords.py`).
+  - Added batch processing for keyword extraction (`src/data/nlp/genai_keywords_batch.py`).
+  - Created embedding generation pipeline (`src/data/embeddings/embeddings.py`).
+  - Added support for multiple embedding providers:
+    - Google Gemini Embedding 001 (`src/data/embeddings/genai_embeddings.py`)
+    - OpenAI Text Embedding 3 Small (`src/data/embeddings/openai_embeddings.py`)
+
+- **AI Integration**:
+  - Integrated Google Gemini API for data processing (`src/api/genai_gemini.py`).
+  - Added batch processing support for Gemini API (`src/api/genai_gemini_batch.py`).
+  - Created configuration management for AI providers (`src/api/config/`).
+
+- **Database & Batch System**:
+  - Implemented batch processing system for large-scale data operations (`docs/database/BATCH_SYSTEM.md`).
+  - Added Supabase integration for data storage (`src/data/upsert_supabase.py`).
+  - Created structured output schemas for LLM responses (`config/franserve/structured_output.json`).
+
+- **Notebooks & Documentation**:
+  - Added Jupyter notebook for NLP data processing (`notebooks/1.2-data-nlp.ipynb`).
+  - Created comprehensive TODO documentation (`docs/TODO.md`).
+
+## [2025-07-21] - Initial Project Setup
+
+### Added
+- **Project Structure**:
+  - Initial project structure with Poetry for dependency management.
+  - Backend structure with FastAPI framework.
+  - Database pipeline and schema design.
+  - Basic project documentation and README.
+
+- **Franserve Data Processing**:
+  - Initial Franserve scraper implementation (`src/data/franserve/scrapper.py`).
+  - HTML formatter for franchise data (`src/data/franserve/html_formatter.py`).
+  - Dataset management utilities (`src/dataset.py`).
+
+- **Database**:
+  - Database schema documentation (`docs/database/`).
+  - Database flow diagrams and documentation.
+  - Supabase integration setup.
+
+- **Testing**:
+  - Initial test suite for HTML formatter (`tests/test_html_formatter.py`).
+  - Tests for scraper functionality (`tests/test_scrapper.py`).
+  - Supabase connection tests (`tests/test_supabase.py`).
+
+- **Documentation**:
+  - Project README with setup instructions.
+  - TODO list for future development (`docs/TODO.md`).
+  - Database documentation and flow diagrams.
