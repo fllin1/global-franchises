@@ -11,6 +11,7 @@ import shutil
 from typing import List
 
 from src.config import EXTERNAL_DATA_DIR, PROJ_ROOT
+from src.data.storage.storage_client import StorageClient
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -60,6 +61,19 @@ class ExtractFileManager:
             raise FileNotFoundError(f"Data directory {data_dir} does not exist.")
         data_paths = [path.relative_to(PROJ_ROOT) for path in data_dir.glob("*.html")]
         return data_paths
+
+    def get_storage_files(self, prefix: str) -> List[dict]:
+        """
+        Get all files from Supabase Storage with a given prefix.
+
+        Args:
+            prefix (str): The prefix (folder) to list files from.
+
+        Returns:
+            List[dict]: A list of file objects from Supabase Storage.
+        """
+        client = StorageClient()
+        return client.list_files(prefix)
 
     def create_log_file(self, updates: List[str], log_path: Path = None) -> Path:
         """

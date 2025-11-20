@@ -14,6 +14,9 @@ from supabase import Client, create_client
 FRANCHISE_TABLE = "Franchises"
 CONTACTS_TABLE = "Contacts"
 
+# --- Storage ---
+RAW_FRANCHISE_BUCKET = "raw-franchise-html"
+
 
 def supabase_client():
     """

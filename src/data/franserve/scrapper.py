@@ -18,6 +18,8 @@ from bs4 import BeautifulSoup
 import dotenv
 import requests
 
+from src.data.storage.storage_client import StorageClient
+
 dotenv.load_dotenv()
 
 
@@ -139,6 +141,7 @@ def get_franchise_data(session: requests.Session, url: str) -> BeautifulSoup:
 def save_franchise_data(data: BeautifulSoup, file_name: str, data_dir: str) -> None:
     """
     Save the data for a franchise to a JSON file.
+    DEPRECATED: Use upload_franchise_html instead.
 
     Args:
         data (BeautifulSoup): The data to save.
@@ -147,3 +150,21 @@ def save_franchise_data(data: BeautifulSoup, file_name: str, data_dir: str) -> N
     """
     with open(data_dir / file_name, "w", encoding="utf-8") as f:
         f.write(data.prettify(formatter="html"))
+
+
+def upload_franchise_html(
+    data: BeautifulSoup, file_path: str, storage_client: StorageClient
+) -> str:
+    """
+    Upload franchise HTML data to Supabase Storage.
+
+    Args:
+        data (BeautifulSoup): The data to upload.
+        file_path (str): The path within the bucket.
+        storage_client (StorageClient): The storage client instance.
+
+    Returns:
+        str: The path of the uploaded file.
+    """
+    html_content = data.prettify(formatter="html")
+    return storage_client.upload_html(html_content, file_path)

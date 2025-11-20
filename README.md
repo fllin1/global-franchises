@@ -83,10 +83,10 @@ The dashboard will be available at `http://localhost:3000`.
 
 Run scripts in this order to process data (ETL):
 
-0. **Scrape Data**: [`python src/data/franserve/scrapper.py`](./src/data/franserve/scrapper.py) - Fetches and saves raw HTML.
-1. **Parse Data**: There are two ways to parse the data (Converts HTML to JSON):
-   - The conventional method with rule-based parsing: [`python src/data/franserve/html_formatter.py`](./src/data/franserve/html_formatter.py)
-   - A more organic method that uses API calls with Google Genai library for AI-assisted parsing: [`python src/data/nlp/genai_data.py`](./src/data/nlp/genai_data.py) (there is also a batch method in the same folder, which is still unstable, using the newly added batch feature from Google Genai in July 2025)
+0. **Scrape Data**: `python src/data/functions/extract.py` (via Extractor class) - Fetches and uploads raw HTML to Supabase Storage.
+1. **Parse Data**: There are two ways to parse the data (Converts HTML from Storage to JSON):
+   - The conventional method with rule-based parsing: `python src/data/functions/extract.py` (via rule_based_parsing method)
+   - A more organic method that uses API calls with Google Genai library for AI-assisted parsing: [`python src/data/nlp/genai_data.py`](./src/data/nlp/genai_data.py) (reads from Storage)
 2. **Extract Info**: To facilitate the matching of the franchises with profiles of future leads, we prepare the data in two ways:
    - Extraction of **keywords**: [`python src/data/nlp/genai_keywords.py`](./src/data/nlp/genai_keywords.py)
    - Generation of **embeddings**: [`python src/data/embeddings/openai_embeddings.py`](./src/data/embeddings/openai_embeddings.py)

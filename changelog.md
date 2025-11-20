@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2025-11-20] - Data Lake Implementation
+
+### Added
+- **Data Lake Architecture**:
+  - Implemented Supabase Storage integration for storing raw HTML (`src/data/storage/storage_client.py`).
+  - Created `scraping_runs` table to track scraping history (`docs/database/create_scraping_runs_table.sql`).
+  - Added `migrate_local_to_storage.py` script to move local files to the cloud.
+- **Testing**:
+  - Added `tests/test_storage_client.py` and `tests/extract/test_extractor_storage.py` to verify storage operations.
+
+### Changed
+- **Scraping Pipeline**:
+  - Updated `src/data/franserve/scrapper.py` to upload HTML to Supabase Storage instead of local disk.
+  - Updated `src/data/functions/extract.py` to scrape to Storage and parse from Storage.
+  - Updated `src/data/nlp/genai_data_batch.py` to process files directly from Storage.
+- **File Management**:
+  - Deprecated local file storage for scraping.
+  - Added `StorageClient` to handle cloud file operations.
+- **Documentation**:
+  - Updated `docs/database/README.md` to reflect the new Data Lake architecture.
+  - Updated `README.md` with new pipeline execution steps.
+
+### Fixed
+- Decoupled scraping and parsing steps, allowing independent scaling and re-processing.
+- Removed dependency on local file system for data processing.
+
 ## [2025-11-20] - Database Cleanup
 
 ### Removed
