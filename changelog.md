@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2025-11-20] - Territory Extraction System
+
+### Added
+- **Database**:
+  - Added `processed`, `has_attachment_mention`, and `is_out_of_office` columns to `ghl_messages` table (`docs/database/add_ghl_messages_processing_columns.sql`).
+
 ## [2025-11-20] - Data Lake Implementation
 
 ### Added
