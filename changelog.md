@@ -35,6 +35,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Comprehensive changelog documenting all project features, enhancements, and fixes.
 - Created `.cursorrules` file with mandatory changelog maintenance rules to ensure all changes are properly documented in the correct format.
+- Updated `README.md` to include documentation for the new Web Application (Dashboard, Map, API) and setup instructions.
 
 ## [2025-11-19] - Territory Explorer, Lead Analysis & Search Enhancements
 
