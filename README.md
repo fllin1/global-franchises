@@ -92,6 +92,24 @@ Run scripts in this order to process data (ETL):
    - Generation of **embeddings**: [`python src/data/embeddings/openai_embeddings.py`](./src/data/embeddings/openai_embeddings.py)
 3. **Load to Supabase**: [`python src/data/upsert_supabase.py`](./src/data/upsert_supabase.py) - Upserts data to database.
 
+### Territory Availability Processing (GHL Replies)
+
+To extract territory availability from franchise email replies in GoHighLevel (GHL):
+
+```bash
+python src/ghl/process_territory_replies.py
+```
+
+**Features:**
+- **Message Filtering**: Automatically detects and skips outbound template messages.
+- **Classification**: Identifies out-of-office auto-replies and messages with attachment mentions using Gemini LLM.
+- **Extraction**: Parses message bodies to find structured territory availability data (Location, State, Status).
+- **Integration**: Updates the `territory_checks` table directly for use in the dashboard.
+
+Options:
+- `--limit 100`: Process N messages (default 100).
+- `--loop`: Run continuously, polling every minute.
+
 Note: _New architecture in development, all the data treatment functions will be in the `./src/data/functions/` folder, and they will manage the progressive update of the data._
 
 ## Summary of Database Features
