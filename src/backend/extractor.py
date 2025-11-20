@@ -73,6 +73,25 @@ async def extract_profile_from_notes(notes: str) -> LeadProfile:
                 raise ValueError("Failed to extract profile: Empty response from LLM")
                 
             data = json.loads(response.text)
+
+            # Fallback: If state_code is missing but location is found, try to map it.
+            if not data.get('state_code') and data.get('location'):
+                loc_lower = data['location'].lower()
+                # Add common states or import a library if needed
+                state_map = {
+                    "california": "CA", "texas": "TX", "florida": "FL", "new york": "NY",
+                    "illinois": "IL", "pennsylvania": "PA", "ohio": "OH", "georgia": "GA",
+                    "north carolina": "NC", "michigan": "MI", "new jersey": "NJ", "virginia": "VA",
+                    "washington": "WA", "arizona": "AZ", "massachusetts": "MA", "tennessee": "TN",
+                    "indiana": "IN", "missouri": "MO", "maryland": "MD", "wisconsin": "WI",
+                    "colorado": "CO", "minnesota": "MN", "south carolina": "SC", "alabama": "AL",
+                    "louisiana": "LA", "kentucky": "KY", "oregon": "OR", "oklahoma": "OK"
+                }
+                for state_name, code in state_map.items():
+                    if state_name in loc_lower:
+                        data['state_code'] = code
+                        break
+
             logger.info(f"Extracted profile data: {data}")
             
             return LeadProfile(**data)

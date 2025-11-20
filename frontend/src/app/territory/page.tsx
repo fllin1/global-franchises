@@ -110,12 +110,7 @@ export default function TerritoryPage() {
               <div>
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   {selectedState ? (
-                    <>
-                      Franchises in <span className="text-indigo-600">{selectedState}</span>
-                      <span className="ml-2 bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-medium">
-                        {franchises.length}
-                      </span>
-                    </>
+                    <>Franchises in <span className="text-indigo-600">{selectedState}</span></>
                   ) : (
                     'Available Franchises'
                   )}

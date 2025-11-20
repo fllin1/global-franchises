@@ -13,7 +13,8 @@ returns table (
   sub_categories jsonb,
   description_text text,
   total_investment_min_usd int,
-  similarity float
+  similarity float,
+  unavailable_states jsonb
 )
 language plpgsql
 as $$
@@ -26,7 +27,8 @@ begin
       f.sub_categories,
       f.description_text,
       f.total_investment_min_usd,
-      1 - (f.franchise_embedding <=> query_embedding) as similarity
+      1 - (f.franchise_embedding <=> query_embedding) as similarity,
+      f.unavailable_states
     from
       "Franchises" f
     where
@@ -63,4 +65,3 @@ begin
   );
 end;
 $$;
-

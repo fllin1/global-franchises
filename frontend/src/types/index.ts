@@ -5,6 +5,7 @@ export type TierStatus = "tier_1" | "tier_2";
 export interface LeadProfile {
   liquidity: number | null; // The hard constraint
   location: string | null;  // The location filter
+  state_code?: string | null; // The inferred state code
   semantic_query: string;   // The intent for vector search
   extracted_tags?: string[]; // e.g. ["Absentee", "Fitness", "High Budget"]
 }
@@ -16,6 +17,7 @@ export interface FranchiseMatch {
   investment_min: number;
   match_score: number; // 0 to 100
   why_narrative: string; // AI Generated explanation for the broker
+  unavailable_states?: string[]; // JSON list of states where this franchise is NOT available
 }
 
 export interface AnalysisResponse {

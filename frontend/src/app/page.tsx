@@ -1,18 +1,28 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { Loader2, Sparkles, MapPin, Wallet } from 'lucide-react';
 import { analyzeLead } from './actions';
 import { MatchCard } from '@/components/MatchCard';
 import { CoachingCard } from '@/components/CoachingCard';
+import TerritoryMap from '@/components/TerritoryMap';
 import { AnalysisResponse } from '@/types';
 
 import Link from 'next/link';
+
+const US_STATES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
+  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
+  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+];
 
 export default function Dashboard() {
   const [isPending, startTransition] = useTransition();
   const [response, setResponse] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notes, setNotes] = useState<string>('');
 
   async function handleSubmit(formData: FormData) {
     setError(null);
@@ -25,6 +35,29 @@ export default function Dashboard() {
       }
     });
   }
+
+  const coverageStates = useMemo(() => {
+    if (!response?.matches || response.matches.length === 0) return [];
+    
+    const covered = new Set<string>();
+    
+    response.matches.forEach(match => {
+        // If unavailable_states is null/undefined, it's available everywhere
+        if (!match.unavailable_states) {
+            US_STATES.forEach(s => covered.add(s));
+            return;
+        }
+        
+        const unavailable = new Set(match.unavailable_states);
+        US_STATES.forEach(state => {
+            if (!unavailable.has(state)) {
+                covered.add(state);
+            }
+        });
+    });
+    
+    return Array.from(covered);
+  }, [response]);
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
@@ -56,6 +89,8 @@ export default function Dashboard() {
             <textarea
               id="notes"
               name="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               placeholder="Paste call notes, email text, or resume details here..."
               className="flex-1 w-full p-4 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm leading-relaxed text-slate-900 placeholder:text-slate-400 transition-all"
               required
@@ -89,9 +124,10 @@ export default function Dashboard() {
 
       {/* Right Panel: Intelligence (65%) */}
       <section className="w-full md:w-[65%] p-6 md:p-8 overflow-y-auto h-screen">
+        
         {!response ? (
           // State A: Idle
-          <div className="h-full flex flex-col items-center justify-center text-center text-slate-400">
+          <div className="h-full flex flex-col items-center justify-center text-center text-slate-400"> 
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
               <Sparkles className="w-8 h-8 text-slate-300" />
             </div>
@@ -101,6 +137,13 @@ export default function Dashboard() {
         ) : (
           <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
             
+            {/* Map Visualization - Only Visible when response exists */}
+            <TerritoryMap 
+                targetState={response?.profile?.state_code}
+                coverageStates={coverageStates}
+                isLoading={isPending}
+            />
+
             {/* Header Stats */}
             <div className="flex flex-wrap gap-3 mb-8">
               {response.profile.liquidity !== null && (
@@ -144,7 +187,11 @@ export default function Dashboard() {
                 </div>
                 <div className="space-y-4">
                   {response.matches?.map((match) => (
-                    <MatchCard key={match.id} match={match} />
+                    <MatchCard 
+                      key={match.id} 
+                      match={match}
+                      targetState={response.profile.state_code}
+                    />
                   ))}
                 </div>
               </div>

@@ -61,3 +61,4 @@ def test_get_franchises_by_location_endpoint(mock_search_state):
     assert len(data) == 1
     assert data[0]["franchise_name"] == "FitBody Boot Camp"
 
+

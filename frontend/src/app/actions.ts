@@ -7,6 +7,7 @@ interface BackendLeadProfile {
   liquidity: number | null;
   investment_cap: number | null;
   location: string | null;
+  state_code: string | null;
   semantic_query: string;
 }
 
@@ -67,6 +68,7 @@ export async function analyzeLead(formData: FormData): Promise<AnalysisResponse>
     const profile: LeadProfile = {
       liquidity: rawData.profile.liquidity,
       location: rawData.profile.location,
+      state_code: rawData.profile.state_code,
       semantic_query: rawData.profile.semantic_query,
       extracted_tags
     };
