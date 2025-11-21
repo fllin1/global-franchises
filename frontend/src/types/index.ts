@@ -31,6 +31,7 @@ export interface FranchiseMatch {
   match_score: number; // 0 to 100
   why_narrative: string; // AI Generated explanation for the broker
   unavailable_states?: string[]; // JSON list of states where this franchise is NOT available
+  primary_category?: string;
 }
 
 export interface AnalysisResponse {

@@ -6,6 +6,26 @@ from src.backend.search import search_franchises_by_state
 
 router = APIRouter(prefix="/api/franchises", tags=["franchises"])
 
+@router.get("/search")
+async def search_franchises(q: str = Query(..., min_length=2)):
+    """
+    Fuzzy search for franchises by name.
+    """
+    try:
+        logger.info(f"Searching franchises for query: {q}")
+        
+        # Perform ILIKE search on franchise_name
+        response = supabase_client().table("franchises") \
+            .select("id, franchise_name, primary_category, description_text, total_investment_min_usd, slug") \
+            .ilike("franchise_name", f"%{q}%") \
+            .limit(20) \
+            .execute()
+            
+        return response.data
+    except Exception as e:
+        logger.error(f"Error searching franchises: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/by-location")
 async def get_franchises_by_location(state_code: str = Query(..., min_length=2, max_length=2)):
     """
@@ -19,6 +39,48 @@ async def get_franchises_by_location(state_code: str = Query(..., min_length=2, 
         logger.error(f"Error in get_franchises_by_location: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/{franchise_id}/territories")
+async def get_franchise_territories(franchise_id: int):
+    """
+    Get structured territory availability for a franchise.
+    Returns hierarchy: State -> City -> Zip details.
+    """
+    try:
+        logger.info(f"Fetching territory checks for Franchise ID: {franchise_id}")
+        
+        # Fetch all territory checks for this franchise
+        response = supabase_client().table("territory_checks") \
+            .select("*") \
+            .eq("franchise_id", franchise_id) \
+            .execute()
+            
+        raw_data = response.data
+        
+        # Organize into hierarchy
+        hierarchy = {}
+        
+        for item in raw_data:
+            state = item.get('state_code') or "Unknown"
+            city = item.get('city') or "Unspecified Area"
+            
+            if state not in hierarchy:
+                hierarchy[state] = {}
+            
+            if city not in hierarchy[state]:
+                hierarchy[state][city] = []
+                
+            hierarchy[state][city].append(item)
+            
+        return {
+            "franchise_id": franchise_id,
+            "territory_count": len(raw_data),
+            "states": hierarchy
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching territories for {franchise_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/{franchise_id}")
 async def get_franchise_detail(franchise_id: int):
     """
@@ -26,7 +88,7 @@ async def get_franchise_detail(franchise_id: int):
     """
     try:
         logger.info(f"Fetching franchise details for ID: {franchise_id}")
-        response = supabase_client().table("Franchises").select("*").eq("id", franchise_id).execute()
+        response = supabase_client().table("franchises").select("*").eq("id", franchise_id).execute()
         
         if not response.data:
             raise HTTPException(status_code=404, detail="Franchise not found")
@@ -35,4 +97,3 @@ async def get_franchise_detail(franchise_id: int):
     except Exception as e:
         logger.error(f"Error fetching franchise {franchise_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-

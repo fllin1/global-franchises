@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2025-11-21] - Bug Fixes
+
+### Fixed
+- **Frontend Search**:
+  - Resolved "Failed to search franchises" error in `FranchiseSearchPage`.
+  - Removed unneeded `image_url` field from `searchFranchises` action (`frontend/src/app/franchises/actions.ts`).
+  - Added proper type definition for `primary_category` in `FranchiseMatch` interface (`frontend/src/types/index.ts`).
+  - Fixed unsafe type casting in `FranchiseSearchPage` (`frontend/src/app/franchises/page.tsx`).
+  - Fixed import path in `FranchiseDetailPage` (`frontend/src/app/franchises/[id]/page.tsx`).
+- **Backend Search**:
+  - Removed reference to non-existent `image_url` column in `search_franchises` endpoint (`src/backend/franchises.py`).
+
+## [2025-11-21] - Franchise Search & Territory Visualization
+
+### Added
+- **Frontend**:
+  - Added "Franchises" tab to the sidebar navigation in `Sidebar.tsx` linked to `/franchises`.
+  - **Search Page**: Created `FranchiseSearchPage` (`frontend/src/app/franchises/page.tsx`) with instant search and list/grid results.
+  - **Detail Page**: Created `FranchiseDetailPage` (`frontend/src/app/franchises/[id]/page.tsx`) with tabs for "Overview" and "Territories".
+  - **Interactive Map**: Implemented `FranchiseTerritoryMap` (`frontend/src/components/FranchiseTerritoryMap.tsx`) using Leaflet:
+    - Features clickable markers, radius circles, and sidebar drill-down navigation.
+    - Auto-centering and zoom behavior based on selection.
+- **Backend**:
+  - Created `normalize_territories.py` script (`src/backend/scripts/normalize_territories.py`) using LLM + pgeocode to extract structured location data from raw text.
+  - Created `normalize_simple.py` for fast regex-based location extraction.
+  - Created `prepare_gemini_batch.py` for bulk processing complex locations via Gemini Batch API.
+  - Implemented `GET /api/franchises/search` endpoint with fuzzy matching (ILIKE) for instant franchise search.
+  - Implemented `GET /api/franchises/{id}/territories` endpoint to return hierarchical territory availability (State -> City -> Zip).
+- **Database**:
+  - Added geographic columns (`city`, `zip_code`, `covered_zips`, `latitude`, `longitude`, `radius_miles`) to `territory_checks` table (`docs/database/add_geo_columns_to_territory_checks.sql`).
+  - Added indexes for geospatial queries on `zip_code` and `city`.
+
 ## [2025-11-20] - Territory Extraction System
 
 ### Added

@@ -1136,6 +1136,26 @@ test = ["hypothesis (>=6.46.1)", "pytest (>=7.3.2)", "pytest-xdist (>=2.2.0)"]
 xml = ["lxml (>=4.9.2)"]
 
 [[package]]
+name = "pgeocode"
+version = "0.5.0"
+description = "Postal code geocoding"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "pgeocode-0.5.0-py3-none-any.whl", hash = "sha256:de24a5997524ef557a29a1b22443cc1bf5d02c098e0c7a8dd9ea9caf01a6a72a"},
+    {file = "pgeocode-0.5.0.tar.gz", hash = "sha256:37d6caf74e9f2b1e69762811953df5b43fe7f1806833c83bf85a60dd784dff9e"},
+]
+
+[package.dependencies]
+numpy = "*"
+pandas = "*"
+requests = "*"
+
+[package.extras]
+fuzzy = ["thefuzz"]
+
+[[package]]
 name = "pillow"
 version = "11.3.0"
 description = "Python Imaging Library (Fork)"
@@ -2089,4 +2109,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "~=3.12.0"
-content-hash = "10ece7c5c28a640e60b72bef8b46c4b99f4d1d0e4379c3a03353f9c2c23f270c"
+content-hash = "f1a57ed29d278ddd97258cb2e8d2fdc97ea389d2e5aac032485058784605690d"

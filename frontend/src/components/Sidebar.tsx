@@ -6,6 +6,7 @@ import {
   LayoutDashboard, 
   Users, 
   Map, 
+  Building,
   Settings, 
   Sparkles 
 } from 'lucide-react';
@@ -13,6 +14,7 @@ import {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'My Leads', href: '/leads', icon: Users },
+  { name: 'Franchises', href: '/franchises', icon: Building },
   { name: 'Territory Map', href: '/territory', icon: Map },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
