@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Vercel Deployment**:
+  - Fixed TypeScript type error in `frontend/src/app/territory/page.tsx` by renaming incorrect `selectedState` prop to `targetState` when using the `TerritoryMap` component.
   - Fixed TypeScript compilation error by updating `target` from `ES2017` to `ES2020` in `frontend/tsconfig.json` to support regex `s` (dotAll) flag used in `franchises/[id]/page.tsx`.
   - Fixed missing `@/lib/api` module error by adding exception to `.gitignore` to allow `frontend/src/lib/` directory to be tracked (`frontend/src/lib/api.ts` is now committed).
   - Added missing `leaflet`, `react-leaflet`, and `@types/leaflet` packages to `frontend/package.json` to resolve build errors in `FranchiseTerritoryMap.client.tsx`.

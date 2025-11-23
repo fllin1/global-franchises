@@ -95,7 +95,7 @@ export default function TerritoryPage() {
             {/* Flex-1 ensures map takes all remaining vertical space */}
             <div className="flex-1 min-h-0 relative">
               <TerritoryMap 
-                selectedState={selectedState}
+                targetState={selectedState}
                 onStateClick={handleStateSelect}
                 isLoading={isPending}
               />
