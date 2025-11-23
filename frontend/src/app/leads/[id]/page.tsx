@@ -2,13 +2,13 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { getLead, getLeadMatches, updateLeadProfile } from '@/app/actions';
+import { getLead, getLeadMatches, updateLeadProfile, getLeadComparisonAnalysis } from '@/app/actions';
 import { Lead, FranchiseMatch, LeadProfile } from '@/types';
 import { MatchCard } from '@/components/MatchCard';
 import { CoachingCard } from '@/components/CoachingCard';
 import { LeadProfileForm } from '@/components/LeadProfileForm';
 import { MatchDetailModal } from '@/components/MatchDetailModal';
-import { Wallet, MapPin, BrainCircuit, CheckSquare, ArrowRightLeft } from 'lucide-react';
+import { Wallet, MapPin, BrainCircuit, CheckSquare, ArrowRightLeft, FileBarChart, Loader2 } from 'lucide-react';
 import { useComparison } from '@/contexts/ComparisonContext';
 
 export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,8 +21,31 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [isLoading, setIsLoading] = useState(true);
   const [selectedFranchiseId, setSelectedFranchiseId] = useState<number | null>(null);
   
+  // Saved Comparison State
+  const [hasSavedComparison, setHasSavedComparison] = useState(false);
+  const [isCheckingComparison, setIsCheckingComparison] = useState(false);
+  
   // Comparison Selection
   const { selectedIds, toggleComparison, setLeadContext, loadLeadSelections } = useComparison();
+
+  useEffect(() => {
+    // Check for saved comparison on mount
+    const checkSavedComparison = async () => {
+        if (!leadId) return;
+        setIsCheckingComparison(true);
+        try {
+            const analysis = await getLeadComparisonAnalysis(leadId);
+            if (analysis && analysis.items && analysis.items.length > 0) {
+                setHasSavedComparison(true);
+            }
+        } catch (e) {
+            console.error("Failed to check saved comparison", e);
+        } finally {
+            setIsCheckingComparison(false);
+        }
+    };
+    checkSavedComparison();
+  }, [leadId]);
 
   useEffect(() => {
     // Initialize Lead Context
@@ -125,10 +148,34 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           />
 
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
-              <BrainCircuit className="w-5 h-5 text-indigo-600" />
-              AI Recommendations
-            </h2>
+            <div className="flex items-center gap-4">
+                <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+                <BrainCircuit className="w-5 h-5 text-indigo-600" />
+                AI Recommendations
+                </h2>
+                
+                {/* Load Saved Comparison Button */}
+                {(hasSavedComparison || isCheckingComparison) && (
+                    <button
+                        onClick={() => router.push(`/franchises/compare?leadId=${leadId}`)}
+                        disabled={isCheckingComparison || !hasSavedComparison}
+                        className={`
+                            flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                            ${isCheckingComparison 
+                                ? 'bg-slate-100 text-slate-400 cursor-wait' 
+                                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'}
+                        `}
+                    >
+                        {isCheckingComparison ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <FileBarChart className="w-4 h-4" />
+                        )}
+                        {isCheckingComparison ? 'Checking...' : 'Load Saved Comparison'}
+                    </button>
+                )}
+            </div>
+
             <div className="flex gap-2">
                {/* Optional bulk actions */}
             </div>

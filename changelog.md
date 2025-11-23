@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-23] - Load Comparison Button
+
+### Added
+- **Lead Detail Page**:
+  - Added "Load Saved Comparison" button to the "AI Recommendations" section header (`frontend/src/app/leads/[id]/page.tsx`).
+  - Implemented check for existing saved comparison analysis on page mount.
+  - Added navigation to comparison page with pre-loaded lead context.
+
 ## [2025-11-22] - Lead Profile Form & Enhanced Data
 
 ### Added
