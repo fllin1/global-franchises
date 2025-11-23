@@ -6,6 +6,7 @@ import ComparisonTable from '@/components/ComparisonTable';
 import { ComparisonResponse, Lead } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { getLeadComparisonAnalysis } from '@/app/actions';
+import { getApiUrl } from '@/lib/api';
 
 export default function ComparisonPage() {
   return (
@@ -28,7 +29,7 @@ function ComparisonContent() {
 
   useEffect(() => {
     // Load leads for selector
-    fetch('http://localhost:8000/api/leads/?limit=50')
+    fetch(getApiUrl('/api/leads/?limit=50'))
       .then(res => res.json())
       .then(setLeads)
       .catch(console.error);
@@ -84,14 +85,14 @@ function ComparisonContent() {
             // Fetch lead profile if leadId is present for personalization
             let leadProfile = null;
             if (leadIdParam) {
-              const leadRes = await fetch(`http://localhost:8000/api/leads/${leadIdParam}`);
+              const leadRes = await fetch(getApiUrl(`/api/leads/${leadIdParam}`));
               if (leadRes.ok) {
                 const leadData = await leadRes.json();
                 leadProfile = leadData.profile_data;
               }
             }
 
-            const res = await fetch('http://localhost:8000/api/franchises/compare', {
+            const res = await fetch(getApiUrl('/api/franchises/compare'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 

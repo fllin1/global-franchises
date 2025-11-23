@@ -1,6 +1,7 @@
 'use server';
 
 import { AnalysisResponse, FranchiseMatch, TierStatus, LeadProfile, TerritoryFranchise, Lead } from '@/types';
+import { getApiUrl } from '@/lib/api';
 
 // Types matching the ACTUAL Backend Response
 interface BackendLeadProfile {
@@ -37,7 +38,7 @@ export async function analyzeLead(formData: FormData): Promise<AnalysisResponse>
   }
 
   try {
-    const response = await fetch('http://127.0.0.1:8000/analyze-lead', {
+    const response = await fetch(getApiUrl('/analyze-lead'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -104,7 +105,7 @@ export async function analyzeLead(formData: FormData): Promise<AnalysisResponse>
 
 export async function searchFranchisesByLocation(stateCode: string): Promise<TerritoryFranchise[]> {
   try {
-    const response = await fetch(`http://127.0.0.1:8000/api/franchises/by-location?state_code=${stateCode}`, {
+    const response = await fetch(getApiUrl(`/api/franchises/by-location?state_code=${stateCode}`), {
       method: 'GET',
       cache: 'no-store',
     });
@@ -126,7 +127,7 @@ export async function searchFranchisesByLocation(stateCode: string): Promise<Ter
 
 export async function getLeads(): Promise<Lead[]> {
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/leads/', { cache: 'no-store' });
+    const response = await fetch(getApiUrl('/api/leads/'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch leads');
     return await response.json();
   } catch (error) {
@@ -140,7 +141,7 @@ export async function createLead(formData: FormData): Promise<Lead> {
   if (!notes || typeof notes !== 'string') throw new Error('Invalid notes');
 
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/leads/', {
+    const response = await fetch(getApiUrl('/api/leads/'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notes }),
@@ -159,7 +160,7 @@ export async function createLead(formData: FormData): Promise<Lead> {
 
 export async function getLead(id: number): Promise<Lead> {
     try {
-        const response = await fetch(`http://127.0.0.1:8000/api/leads/${id}`, { cache: 'no-store' });
+        const response = await fetch(getApiUrl(`/api/leads/${id}`), { cache: 'no-store' });
         if (!response.ok) throw new Error('Failed to fetch lead');
         return await response.json();
     } catch (error) {
@@ -170,7 +171,7 @@ export async function getLead(id: number): Promise<Lead> {
 
 export async function updateLeadProfile(leadId: number, profileData: LeadProfile): Promise<Lead> {
   try {
-    const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}`, {
+    const response = await fetch(getApiUrl(`/api/leads/${leadId}`), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ profile_data: profileData }),
@@ -189,7 +190,7 @@ export async function updateLeadProfile(leadId: number, profileData: LeadProfile
 
 export async function deleteLead(id: number): Promise<void> {
   try {
-    const response = await fetch(`http://127.0.0.1:8000/api/leads/${id}`, {
+    const response = await fetch(getApiUrl(`/api/leads/${id}`), {
       method: 'DELETE',
     });
     if (!response.ok) throw new Error('Failed to delete lead');
@@ -201,7 +202,7 @@ export async function deleteLead(id: number): Promise<void> {
 
 export async function getFranchiseDetail(id: number): Promise<any> {
     try {
-        const response = await fetch(`http://127.0.0.1:8000/api/franchises/${id}`, { cache: 'no-store' });
+        const response = await fetch(getApiUrl(`/api/franchises/${id}`), { cache: 'no-store' });
         if (!response.ok) throw new Error('Failed to fetch franchise');
         return await response.json();
     } catch (error) {
@@ -212,7 +213,7 @@ export async function getFranchiseDetail(id: number): Promise<any> {
 
 export async function getLeadMatches(id: number): Promise<FranchiseMatch[]> {
     try {
-        const response = await fetch(`http://127.0.0.1:8000/api/leads/${id}/matches`, { cache: 'no-store' });
+        const response = await fetch(getApiUrl(`/api/leads/${id}/matches`), { cache: 'no-store' });
         if (!response.ok) throw new Error('Failed to fetch matches');
         const data = await response.json();
         
@@ -251,7 +252,7 @@ export async function getLeadMatches(id: number): Promise<FranchiseMatch[]> {
 
 export async function getLeadComparisonSelections(leadId: number): Promise<number[]> {
   try {
-    const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}/comparison-selections`, {
+    const response = await fetch(getApiUrl(`/api/leads/${leadId}/comparison-selections`), {
       cache: 'no-store'
     });
     if (!response.ok) {
@@ -268,7 +269,7 @@ export async function getLeadComparisonSelections(leadId: number): Promise<numbe
 
 export async function saveLeadComparisonSelections(leadId: number, franchiseIds: number[]): Promise<number[]> {
   try {
-    const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}/comparison-selections`, {
+    const response = await fetch(getApiUrl(`/api/leads/${leadId}/comparison-selections`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(franchiseIds),
@@ -284,7 +285,7 @@ export async function saveLeadComparisonSelections(leadId: number, franchiseIds:
 
 export async function getLeadComparisonAnalysis(leadId: number): Promise<any> {
   try {
-    const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}/comparison-analysis`, {
+    const response = await fetch(getApiUrl(`/api/leads/${leadId}/comparison-analysis`), {
       cache: 'no-store'
     });
     if (!response.ok) {
@@ -300,7 +301,7 @@ export async function getLeadComparisonAnalysis(leadId: number): Promise<any> {
 
 export async function saveLeadComparisonAnalysis(leadId: number, analysis: any): Promise<any> {
   try {
-    const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}/comparison-analysis`, {
+    const response = await fetch(getApiUrl(`/api/leads/${leadId}/comparison-analysis`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(analysis),

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Deployment Configuration**:
+  - Created `railway.json` for Railway backend deployment configuration with Poetry build setup and uvicorn start command (`railway.json`).
+  - Created `nixpacks.toml` for Nixpacks build configuration with Python 3.12 and Poetry installation steps (`nixpacks.toml`).
+  - Created `.python-version` file to specify Python 3.12.0 for Railway deployment (`.python-version`).
+  - Created `vercel.json` for Vercel frontend deployment configuration with Next.js framework settings (`frontend/vercel.json`).
+  - Created API configuration helper `getApiUrl` function for centralized API URL management (`frontend/src/lib/api.ts`).
+  - Created `.env.example` file documenting frontend environment variables (`frontend/.env.example`).
+
+### Changed
+- **Frontend API Calls**:
+  - Updated all hardcoded API URLs to use environment variable-based configuration (`frontend/src/app/actions.ts`, `frontend/src/app/franchises/actions.ts`, `frontend/src/app/franchises/compare/page.tsx`).
+  - Replaced `http://127.0.0.1:8000` and `http://localhost:8000` with `getApiUrl()` helper function for production-ready deployment.
+  - Frontend now uses `NEXT_PUBLIC_API_URL` environment variable for backend API endpoint configuration.
+
 ## [2025-11-23] - Load Comparison Button
 
 ### Added

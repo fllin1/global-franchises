@@ -1,11 +1,12 @@
 
 import { FranchiseMatch } from '@/types';
+import { getApiUrl } from '@/lib/api';
 
 export async function searchFranchises(query: string): Promise<FranchiseMatch[]> {
     try {
         const url = query 
-            ? `http://127.0.0.1:8000/api/franchises/search?q=${encodeURIComponent(query)}`
-            : `http://127.0.0.1:8000/api/franchises/search`;
+            ? getApiUrl(`/api/franchises/search?q=${encodeURIComponent(query)}`)
+            : getApiUrl('/api/franchises/search');
 
         const response = await fetch(url, {
             cache: 'no-store'
@@ -30,7 +31,7 @@ export async function searchFranchises(query: string): Promise<FranchiseMatch[]>
 
 export async function getFranchiseTerritories(id: number): Promise<any> {
     try {
-        const response = await fetch(`http://127.0.0.1:8000/api/franchises/${id}/territories`, {
+        const response = await fetch(getApiUrl(`/api/franchises/${id}/territories`), {
             cache: 'no-store'
         });
         if (!response.ok) throw new Error('Failed to fetch territories');
