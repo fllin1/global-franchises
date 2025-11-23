@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Vercel Deployment**:
+  - Fixed TypeScript compilation error in `MatchDetailModal` component usage (`frontend/src/app/leads/[id]/page.tsx`).
+  - Removed invalid `isOpen` prop that was not defined in `MatchDetailModalProps` interface.
+  - Component already handles visibility internally based on `franchiseId` prop (returns `null` when `franchiseId` is null).
+
 ### Added
 - **Deployment Documentation**:
   - Created comprehensive deployment guide (`docs/DEPLOYMENT.md`) with step-by-step instructions for Railway and Vercel deployment.

@@ -208,7 +208,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       {selectedFranchiseId && (
         <MatchDetailModal 
           franchiseId={selectedFranchiseId} 
-          isOpen={!!selectedFranchiseId}
           onClose={() => setSelectedFranchiseId(null)}
         />
       )}
