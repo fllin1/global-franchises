@@ -63,3 +63,4 @@ def test_get_franchises_by_location_endpoint(mock_search_state):
 
 
 
+

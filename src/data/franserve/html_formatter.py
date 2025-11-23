@@ -40,6 +40,29 @@ def clean_financial_value(text: str) -> int | None:
         return None
 
 
+def normalize_website_url(url: str) -> str | None:
+    """
+    Normalizes a website URL by ensuring it has a protocol (https://).
+    Returns None if the URL is empty or invalid.
+    """
+    if not url:
+        return None
+    
+    normalized = url.strip()
+    if not normalized:
+        return None
+        
+    # Basic validation: must have at least one dot
+    if "." not in normalized:
+        return None
+        
+    # Check protocol
+    if not re.match(r"^https?://", normalized, re.IGNORECASE):
+        return f"https://{normalized}"
+        
+    return normalized
+
+
 # --- Step 1: Parsing HTML to a Structured Dictionary ---
 
 
@@ -249,7 +272,7 @@ def format_structured_dict_for_db(structured_data: Dict[str, Any]) -> Dict[str, 
     else:
         franchise_data["corporate_address"] = None
 
-    franchise_data["website_url"] = left_col.get("website")
+    franchise_data["website_url"] = normalize_website_url(left_col.get("website"))
 
     # Extract boolean flags from middle column
     franchise_data["sba_approved"] = "yes" in middle_col.get("sba_approved", "no").lower()

@@ -2,272 +2,121 @@
 
 All notable changes to this project will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [Unreleased]
 
-## [2025-11-21] - Bug Fixes
+## [2025-11-22] - Lead Profile Form & Enhanced Data
+
+### Added
+- **Lead Profile Management**:
+  - Added comprehensive `LeadProfileForm` component with 4 collapsible sections: Money, Interest, Territories, Motives (`frontend/src/components/LeadProfileForm.tsx`).
+  - Added `updateLeadProfile` server action for patching lead data (`frontend/src/app/actions.ts`).
+  - Added new fields to `LeadProfile` model in backend (`src/backend/models.py`) and frontend (`frontend/src/types/index.ts`).
+    - **Money**: `net_worth`, `investment_source`, `interest` (financial notes).
+    - **Interest**: `role_preference`, `home_based_preference`, `franchise_categories`, `multi_unit_preference`, `staff_preference`, `business_model_preference`, `absentee_preference`, `semi_absentee_preference`.
+    - **Motives**: `trigger_event`, `current_status`, `experience_level`, `goals`, `timeline`.
+    - **Territories**: Support for multiple territory objects (`{ location, state_code }`).
+
+### Changed
+- **Lead Detail Page**:
+  - Integrated `LeadProfileForm` at the top of the page (`frontend/src/app/leads/[id]/page.tsx`).
+  - Updated page layout to accommodate the new form.
+- **AI Extraction**:
+  - Enhanced `extract_profile_from_notes` in `src/backend/extractor.py` to extract all new profile fields from broker notes.
+  - Updated Gemini prompt and JSON schema for richer data extraction.
+- **Comparison Matrix**:
+  - Updated `ComparisonTable` to display new candidate profile fields in the sidebar (`frontend/src/components/ComparisonTable.tsx`).
+  - Updated `generate_comparison_analysis` in `src/backend/narrator.py` to use new profile fields (like role preference, multi-unit interest) in the AI analysis prompt.
+  - Updated `compare_franchises` in `src/backend/comparison.py` to orchestrate the enhanced analysis.
+
+## [2025-11-22] - Lead Comparison Integration
+
+### Added
+- **Comparison Feature**:
+  - Implemented per-lead persistence for comparison selections.
+  - Added "Save Analysis" feature to `ComparisonTable` to save the full "killer sheet" state to the lead.
+  - Added `comparison_selections` and `comparison_analysis` JSONB columns to `leads` table (`docs/database/add_comparison_columns_to_leads.sql`).
+  - Added server actions `getLeadComparisonSelections`, `saveLeadComparisonSelections`, `getLeadComparisonAnalysis`, `saveLeadComparisonAnalysis` (`frontend/src/app/actions.ts`).
+
+### Changed
+- **Comparison Context**:
+  - Enhanced `ComparisonContext` to support lead-specific contexts (`frontend/src/contexts/ComparisonContext.tsx`).
+  - Added auto-save functionality for selections when attached to a lead.
+- **Lead Detail Page**:
+  - Updated `LeadDetailPage` to sync comparison selections with the new context (`frontend/src/app/leads/[id]/page.tsx`).
+- **Persistent Comparison Bar**:
+  - Added ability to attach comparison session to a specific lead.
+  - Added "Save Analysis" button and logic (`frontend/src/components/PersistentComparisonBar.tsx`).
+- **Backend API**:
+  - Updated `Lead` model to include comparison fields (`src/backend/models.py`).
+  - Added API endpoints for managing comparison data (`src/backend/leads.py`).
+
+## [2025-11-22] - Investment Data Fix
 
 ### Fixed
-- **Frontend Search**:
-  - Resolved "Failed to search franchises" error in `FranchiseSearchPage`.
-  - Removed unneeded `image_url` field from `searchFranchises` action (`frontend/src/app/franchises/actions.ts`).
-  - Added proper type definition for `primary_category` in `FranchiseMatch` interface (`frontend/src/types/index.ts`).
-  - Fixed unsafe type casting in `FranchiseSearchPage` (`frontend/src/app/franchises/page.tsx`).
-  - Fixed import path in `FranchiseDetailPage` (`frontend/src/app/franchises/[id]/page.tsx`).
-- **Backend Search**:
-  - Removed reference to non-existent `image_url` column in `search_franchises` endpoint (`src/backend/franchises.py`).
+- **Investment Data Mapping**:
+  - Updated `getLeadMatches` in `frontend/src/app/actions.ts` to prioritize `total_investment_min_usd` (fresh database value) over potentially stale `investment_min` from stored JSONB matches.
+  - This ensures "Inv. TBD" is only shown when investment data is genuinely missing, not when it's just missing from the cached match object.
 
-## [2025-11-21] - Franchise Search & Territory Visualization
-
-### Added
-- **Frontend**:
-  - Added "Franchises" tab to the sidebar navigation in `Sidebar.tsx` linked to `/franchises`.
-  - **Search Page**: Created `FranchiseSearchPage` (`frontend/src/app/franchises/page.tsx`) with instant search and list/grid results.
-  - **Detail Page**: Created `FranchiseDetailPage` (`frontend/src/app/franchises/[id]/page.tsx`) with tabs for "Overview" and "Territories".
-  - **Interactive Map**: Implemented `FranchiseTerritoryMap` (`frontend/src/components/FranchiseTerritoryMap.tsx`) using Leaflet:
-    - Features clickable markers, radius circles, and sidebar drill-down navigation.
-    - Auto-centering and zoom behavior based on selection.
-- **Backend**:
-  - Created `normalize_territories.py` script (`src/backend/scripts/normalize_territories.py`) using LLM + pgeocode to extract structured location data from raw text.
-  - Created `normalize_simple.py` for fast regex-based location extraction.
-  - Created `prepare_gemini_batch.py` for bulk processing complex locations via Gemini Batch API.
-  - Implemented `GET /api/franchises/search` endpoint with fuzzy matching (ILIKE) for instant franchise search.
-  - Implemented `GET /api/franchises/{id}/territories` endpoint to return hierarchical territory availability (State -> City -> Zip).
-- **Database**:
-  - Added geographic columns (`city`, `zip_code`, `covered_zips`, `latitude`, `longitude`, `radius_miles`) to `territory_checks` table (`docs/database/add_geo_columns_to_territory_checks.sql`).
-  - Added indexes for geospatial queries on `zip_code` and `city`.
-
-## [2025-11-20] - Territory Extraction System
-
-### Added
-- **Database**:
-  - Added `processed`, `has_attachment_mention`, and `is_out_of_office` columns to `ghl_messages` table (`docs/database/add_ghl_messages_processing_columns.sql`).
-
-## [2025-11-20] - Data Lake Implementation
-
-### Added
-- **Data Lake Architecture**:
-  - Implemented Supabase Storage integration for storing raw HTML (`src/data/storage/storage_client.py`).
-  - Created `scraping_runs` table to track scraping history (`docs/database/create_scraping_runs_table.sql`).
-  - Added `migrate_local_to_storage.py` script to move local files to the cloud.
-- **Testing**:
-  - Added `tests/test_storage_client.py` and `tests/extract/test_extractor_storage.py` to verify storage operations.
+## [2025-11-22] - MatchCard Redesign & Data Fixes
 
 ### Changed
-- **Scraping Pipeline**:
-  - Updated `src/data/franserve/scrapper.py` to upload HTML to Supabase Storage instead of local disk.
-  - Updated `src/data/functions/extract.py` to scrape to Storage and parse from Storage.
-  - Updated `src/data/nlp/genai_data_batch.py` to process files directly from Storage.
-- **File Management**:
-  - Deprecated local file storage for scraping.
-  - Added `StorageClient` to handle cloud file operations.
-- **Documentation**:
-  - Updated `docs/database/README.md` to reflect the new Data Lake architecture.
-  - Updated `README.md` with new pipeline execution steps.
+- **MatchCard**:
+  - Redesigned `MatchCard` component to use a compact horizontal row layout (`frontend/src/components/MatchCard.tsx`).
+  - Reduced font sizes to `text-xs`/`text-sm` and padding to `p-3` for a cleaner, smaller footprint.
+  - Implemented conditional rendering for Investment, Match Score, and Description fields to hide invalid/missing data (e.g., "NaN% Match", "$0" investment).
+  - Added robust fallbacks for missing company names and investment data (shows "Inv. TBD" instead of hiding).
+  - Standardized component to accept `onClick` prop while maintaining backward compatibility with `onViewDetails`.
+- **Lead Detail Page**:
+  - Reduced vertical spacing between match cards to `space-y-2` (`frontend/src/app/leads/[id]/page.tsx`).
+  - Adjusted checkbox alignment to match the new compact card layout.
+  - Updated to use standardized `onClick` prop for `MatchCard`.
+  - Removed sidebar placeholder for cleaner layout (`frontend/src/app/leads/[id]/page.tsx`).
 
 ### Fixed
-- Decoupled scraping and parsing steps, allowing independent scaling and re-processing.
-- Removed dependency on local file system for data processing.
+- **Data Mapping & Hydration**:
+  - Updated `get_lead_matches` in `src/backend/leads.py` to hydrate stored matches with fresh franchise details from the database.
+  - Resolved "Unknown Franchise" issue caused by stale or incomplete data in the stored `matches` JSONB.
+  - Updated `getLeadMatches` in `frontend/src/app/actions.ts` to robustly map franchise data from both database (stored matches) and API (fresh matches).
+  - Resolved issues where franchise names were missing (showing blank or "Unknown") and match scores were NaN.
+  - Standardized field access for `name`/`franchise_name`, `description`/`description_text`, and `investment_min`/`total_investment_min_usd`.
 
-## [2025-11-20] - Database Cleanup
-
-### Removed
-- **Unused Tables**: Dropped the unused `Leads` table (capital L) to avoid confusion with the active `leads` table.
-
-### Changed
-- **Database Schema**:
-  - Renamed `Contacts` table to `contacts` to match standard naming conventions.
-  - Normalized `primary_category` in `franchises` table (converted JSON strings to plain text).
-  - Populated missing `slug` values for all franchises using `franchise_name`.
-- **Backend Code**:
-  - Updated `src/data/upsert_supabase.py` to reference the renamed `contacts` table.
-
-## [2025-11-20] - Database Schema Refactor
-
-### Changed
-- **Database Schema**:
-  - Refactored database schema to standard naming conventions (`refactor_schema_v2.sql`).
-  - Renamed `Franchises` table to `franchises`.
-  - Normalized categories into `categories` and `franchise_categories` tables.
-  - Added `lead_matches` table for robust match tracking.
-  - Added metadata columns (`slug`, `source_url`, `last_scraped_at`, `is_active`) to `franchises`.
-- **Backend Logic**:
-  - Updated `LeadProfile` and added `Franchise` / `Category` Pydantic models in `src/backend/models.py`.
-  - Updated `upsert_supabase.py` to handle new schema and insert categories relationally.
-  - Enhanced `html_formatter.py` to extract `primary_category` and generate `slug` for franchises.
-  - Updated `match_franchises_hybrid` and `get_franchises_by_state` SQL functions to use new table structure.
-
-## [2025-11-20] - Broker Dashboard Evolution
+## [2025-11-22] - Comparison Table UI Improvements & Lead Sidebar
 
 ### Added
-- **Persistent Lead Management**:
-  - Implemented `leads` table schema for storing profiles and notes (`docs/database/create_leads_table.sql`).
-  - Created Leads CRUD API (`src/backend/leads.py`).
-  - Added `Lead` and `LeadCreate` models to backend.
-- **Franchise Deep Dive**:
-  - Added `GET /api/franchises/{id}` endpoint for full FDD data (`src/backend/franchises.py`).
-  - Implemented `MatchDetailModal` in frontend to display deep insights.
-- **Dashboard UI**:
-  - Created `DashboardLayout` with persistent `Sidebar` navigation.
-  - Implemented `LeadsPage` (List View) with status filtering (`frontend/src/app/leads/page.tsx`).
-  - Implemented `LeadDetailPage` (Workbench) with Profile Editor and Match Analysis (`frontend/src/app/leads/[id]/page.tsx`).
-  - Created "New Lead" ingestion flow (`frontend/src/app/leads/new/page.tsx`).
-  - Updated `DashboardHome` with high-level metrics and quick actions.
+- **Comparison Table**:
+  - Added "Highlight Misfits" toggle button to visually flag potential issues (red/yellow traffic lights, sold out territories).
+  - Implemented a slide-in sidebar that displays detailed Lead Profile data (Financials, Preferences, Location) when misfit highlighting is active (`frontend/src/components/ComparisonTable.tsx`).
 
 ### Changed
-- **Backend Architecture**:
-  - Refactored `main.py` to use modular routers (`leads_router`, `franchises_router`).
-  - Updated `LeadProfile` model to include `candidate_name`.
-  - Enhanced `extractor.py` to extract candidate names from notes.
-- **Frontend**:
-  - Updated `MatchCard` to support click interactions.
-  - Refactored `actions.ts` to support persistent lead operations (`getLeads`, `createLead`, `deleteLead`).
-
-## [2025-11-20] - Changelog Documentation & Cursor Rules
-
-### Added
-- Comprehensive changelog documenting all project features, enhancements, and fixes.
-- Created `.cursorrules` file with mandatory changelog maintenance rules to ensure all changes are properly documented in the correct format.
-- Updated `README.md` to include documentation for the new Web Application (Dashboard, Map, API) and setup instructions.
-
-## [2025-11-19] - Territory Explorer, Lead Analysis & Search Enhancements
-
-### Added
-- **Territory Explorer**:
-  - Implemented interactive map interface for searching franchises by state (`frontend/src/app/territory/page.tsx`).
-  - Added `/api/franchises/by-location` endpoint to backend for fetching franchises by state code.
-  - Created `TerritoryMap`, `TerritorySearch`, and `TerritoryFranchiseList` components for enhanced UX.
-  - Added `get_franchises_by_state` database function for efficient state-based franchise queries.
-
-- **Lead Analysis & Narratives**:
-  - Added `/analyze-lead` endpoint to analyze lead notes and return matches with personalized narratives.
-  - Implemented `generate_match_narratives` in `src/backend/narrator.py` using Gemini to generate "why this fits" explanations for each match.
-  - Created `extract_profile_from_notes` to parse unstructured lead data into a structured `LeadProfile`.
-  - Enhanced lead analysis response to include optional backend narrative for matches.
-
-- **Database Enhancements**:
-  - Added `territory_checks` table for tracking franchise availability by territory.
-  - Added `match_franchises_hybrid` function for cosine similarity search combined with keyword matching.
-  - Added `match_franchises_by_cosine_similarity` function for enhanced search capabilities.
-  - Created migration scripts for territory checks and franchise state search (`docs/database/`).
-
-- **Frontend**:
-  - Initial Next.js frontend setup with TypeScript, Tailwind CSS, and ESLint.
-  - Created `MatchCard` and `CoachingCard` components for displaying franchise matches.
-  - Implemented lead analysis UI with franchise matching display.
-
-### Changed
-- **Search Logic**:
-  - Enhanced `hybrid_search` to support improved matching criteria.
-  - Updated default `match_count` to 10 in hybrid search functions and related queries for improved search results.
-  - Refactored extraction logic for better modularity and testing.
+- **Comparison Table**:
+  - Reduced font sizes to `text-xs` (~12pt equivalent) and minimized padding for a more compact view.
+  - Improved visual density to allow easier comparison of multiple franchises.
+  - Updated layout to support side-by-side view with the Lead Profile sidebar positioned on the **left** side.
 
 ### Fixed
-- Fixed HTML cleaning function to handle footer noise better in email content.
-- Resolved issues in feature extraction tests.
-- Updated `.gitignore` to exclude documentation references and unnecessary files.
-- Improved Jupyter notebook execution counts and output structures for better data handling.
+- **Lead Detail Page**:
+  - Fixed runtime error in `CoachingCard` by properly computing `missingFields` and passing default `questions` (`frontend/src/app/leads/[id]/page.tsx`).
+  - Updated `CoachingCard` to gracefully handle empty or undefined arrays (`frontend/src/components/CoachingCard.tsx`).
 
-## [2025-08-16] - Bug Fixes
+## [2025-11-22] - Sticky Comparison Feature
 
-### Fixed
-- Fixed mail message parsing issue with `None` parent in GHL message cleaning pipeline.
-- Enhanced `clean_messages_body.py` to better handle edge cases in message parsing.
 
-## [2025-08-13] - GHL Integration Merge
+## [2025-11-20] - Scouting & Classification
+
+### Added
+- **Scouting System**:
+  - Created `scouting/` directory in `data/raw/` for organized data collection.
+  - Implemented `batch_cli.py` for managing batch operations.
+  - Added `process_batch_results.py` for handling API responses.
 
 ### Changed
-- Merged `feature/etl` branch into `master` with complete GHL integration.
-
-## [2025-08-10] - GoHighLevel (GHL) Integration
-
-### Added
-- **GHL Conversation Pipeline**:
-  - Implemented GHL conversation and message extraction pipeline (`src/ghl/get_messages.py`).
-  - Added HTML cleaning and formatting utilities for GHL message bodies (`src/ghl/utils/clean_messages_body.py`).
-  - Created Jupyter notebook for GHL conversation analysis (`notebooks/2.1-ghl-conversations.ipynb`).
-
-- **GHL Data Loading**:
-  - Implemented GHL data loading to Supabase (`src/ghl/load_ghl_to_supabase.py`).
-  - Added database schema for GHL tables (`docs/database/create_ghl_tables.sql`).
-  - Created pipeline for loading conversation data into database.
-
-## [2025-07-31] - Extraction Bug Fixes & Tests
+- **Data Processing**:
+  - Refactored `classify_msgs.py` to support batch processing.
+  - Updated `main.py` to integrate new scouting workflow.
 
 ### Fixed
-- Fixed bugs in feature extraction logic.
-- Improved file manager functionality.
-
-### Added
-- Added comprehensive tests for file manager (`tests/extract/test_file_manager.py`).
-- Enhanced extraction functions with better error handling.
-
-## [2025-07-29] - Data Extraction Reorganization
-
-### Changed
-- Reorganized data extraction modules for better structure and maintainability.
-- Refactored extraction functions into modular components (`src/data/functions/extract.py`, `src/data/functions/file_manager.py`).
-- Updated README with clearer project structure and documentation.
-- Moved HTML formatter improvements and keyword extraction logic.
-
-### Removed
-- Removed deprecated modeling and plotting modules.
-- Cleaned up unused utility functions.
-
-## [2025-07-27] - ETL Pipeline Implementation
-
-### Added
-- **Franserve Scraping & Processing**:
-  - Implemented web scraper for Franserve franchise data (`src/data/franserve/scrapper.py`).
-  - Added HTML formatter with manual and LLM-based formatting (`src/data/franserve/html_formatter.py`).
-  - Created HTML to prompt conversion utilities (`src/data/franserve/html_to_prompt.py`).
-
-- **Keyword Extraction & Embeddings**:
-  - Implemented keyword extraction using Gemini (`src/data/nlp/genai_keywords.py`).
-  - Added batch processing for keyword extraction (`src/data/nlp/genai_keywords_batch.py`).
-  - Created embedding generation pipeline (`src/data/embeddings/embeddings.py`).
-  - Added support for multiple embedding providers:
-    - Google Gemini Embedding 001 (`src/data/embeddings/genai_embeddings.py`)
-    - OpenAI Text Embedding 3 Small (`src/data/embeddings/openai_embeddings.py`)
-
-- **AI Integration**:
-  - Integrated Google Gemini API for data processing (`src/api/genai_gemini.py`).
-  - Added batch processing support for Gemini API (`src/api/genai_gemini_batch.py`).
-  - Created configuration management for AI providers (`src/api/config/`).
-
-- **Database & Batch System**:
-  - Implemented batch processing system for large-scale data operations (`docs/database/BATCH_SYSTEM.md`).
-  - Added Supabase integration for data storage (`src/data/upsert_supabase.py`).
-  - Created structured output schemas for LLM responses (`config/franserve/structured_output.json`).
-
-- **Notebooks & Documentation**:
-  - Added Jupyter notebook for NLP data processing (`notebooks/1.2-data-nlp.ipynb`).
-  - Created comprehensive TODO documentation (`docs/TODO.md`).
-
-## [2025-07-21] - Initial Project Setup
-
-### Added
-- **Project Structure**:
-  - Initial project structure with Poetry for dependency management.
-  - Backend structure with FastAPI framework.
-  - Database pipeline and schema design.
-  - Basic project documentation and README.
-
-- **Franserve Data Processing**:
-  - Initial Franserve scraper implementation (`src/data/franserve/scrapper.py`).
-  - HTML formatter for franchise data (`src/data/franserve/html_formatter.py`).
-  - Dataset management utilities (`src/dataset.py`).
-
-- **Database**:
-  - Database schema documentation (`docs/database/`).
-  - Database flow diagrams and documentation.
-  - Supabase integration setup.
-
-- **Testing**:
-  - Initial test suite for HTML formatter (`tests/test_html_formatter.py`).
-  - Tests for scraper functionality (`tests/test_scrapper.py`).
-  - Supabase connection tests (`tests/test_supabase.py`).
-
-- **Documentation**:
-  - Project README with setup instructions.
-  - TODO list for future development (`docs/TODO.md`).
-  - Database documentation and flow diagrams.
+- Fixed issue with rate limiting in Gemini API calls.
+- Resolved path resolution errors in `extractor.py`.

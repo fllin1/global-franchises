@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from loguru import logger
 from src.api.config.supabase_config import supabase_client
 from src.backend.search import search_franchises_by_state
@@ -7,19 +7,25 @@ from src.backend.search import search_franchises_by_state
 router = APIRouter(prefix="/api/franchises", tags=["franchises"])
 
 @router.get("/search")
-async def search_franchises(q: str = Query(..., min_length=2)):
+async def search_franchises(q: Optional[str] = Query(None, min_length=0)):
     """
     Fuzzy search for franchises by name.
+    If no query provided, returns a default list of franchises.
     """
     try:
         logger.info(f"Searching franchises for query: {q}")
         
-        # Perform ILIKE search on franchise_name
-        response = supabase_client().table("franchises") \
-            .select("id, franchise_name, primary_category, description_text, total_investment_min_usd, slug") \
-            .ilike("franchise_name", f"%{q}%") \
-            .limit(20) \
-            .execute()
+        query_builder = supabase_client().table("franchises") \
+            .select("id, franchise_name, primary_category, description_text, total_investment_min_usd, slug")
+            
+        if q and len(q.strip()) > 0:
+            # Perform ILIKE search on franchise_name if query exists
+            query_builder = query_builder.ilike("franchise_name", f"%{q}%")
+        else:
+            # Default sort if no query
+            query_builder = query_builder.order("franchise_name")
+            
+        response = query_builder.limit(50).execute()
             
         return response.data
     except Exception as e:

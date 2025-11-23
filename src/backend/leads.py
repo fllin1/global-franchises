@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Depends, Body
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from src.backend.models import Lead, LeadCreate, LeadUpdate, LeadProfile
 from src.api.config.supabase_config import supabase_client
@@ -23,6 +23,8 @@ def db_to_lead(row: dict) -> Lead:
         matches=row.get('matches') or [],
         qualification_status=row['qualification_status'],
         workflow_status=row['workflow_status'],
+        comparison_selections=row.get('comparison_selections'),
+        comparison_analysis=row.get('comparison_analysis'),
         created_at=row['created_at'],
         updated_at=row['updated_at']
     )
@@ -155,32 +157,145 @@ async def get_lead_matches(lead_id: int):
         
         # Check if matches already exist (persisted)
         if lead_data.get('matches') is not None:
-            return lead_data['matches']
-        
-        # Fallback: Generate if missing (Lazy Load)
-        logger.info(f"Matches missing for lead {lead_id}, generating now...")
-        
-        # Parse profile
-        profile_data = lead_data.get('profile_data', {})
-        profile = LeadProfile(**profile_data)
-        
-        # 2. Search
-        matches = await hybrid_search(profile, match_count=6)
-        
-        # 3. Narratives
-        narratives = await generate_match_narratives(profile, matches)
-        
-        enriched_matches = []
-        for m in matches:
-            m_id = m.get('id')
-            m['why_narrative'] = narratives.get(m_id, "Matched based on profile criteria.")
-            enriched_matches.append(m)
+            matches = lead_data['matches']
+        else:
+            # Fallback: Generate if missing (Lazy Load)
+            logger.info(f"Matches missing for lead {lead_id}, generating now...")
             
-        # Save back to DB
-        supabase_client().table("leads").update({"matches": enriched_matches}).eq("id", lead_id).execute()
+            # Parse profile
+            profile_data = lead_data.get('profile_data', {})
+            profile = LeadProfile(**profile_data)
             
-        return enriched_matches
+            # 2. Search
+            matches_raw = await hybrid_search(profile, match_count=6)
+            
+            # 3. Narratives
+            narratives = await generate_match_narratives(profile, matches_raw)
+            
+            enriched_matches = []
+            for m in matches_raw:
+                m_id = m.get('id')
+                m['why_narrative'] = narratives.get(m_id, "Matched based on profile criteria.")
+                enriched_matches.append(m)
+                
+            # Save back to DB
+            supabase_client().table("leads").update({"matches": enriched_matches}).eq("id", lead_id).execute()
+                
+            matches = enriched_matches
+
+        # HYDRATION STEP: Fetch fresh details (names, investment) to ensure valid data
+        # This fixes issues where stored JSON matches might have missing/stale names
+        franchise_ids = [m.get('id') for m in matches if m.get('id')]
+        
+        if franchise_ids:
+            f_res = supabase_client().table("franchises")\
+                .select("id, franchise_name, description_text, total_investment_min_usd, primary_category")\
+                .in_("id", franchise_ids)\
+                .execute()
+            
+            fresh_map = {f['id']: f for f in f_res.data}
+            
+            # Merge fresh data into matches
+            for m in matches:
+                fid = m.get('id')
+                fresh = fresh_map.get(fid)
+                if fresh:
+                    m['franchise_name'] = fresh.get('franchise_name')
+                    m['total_investment_min_usd'] = fresh.get('total_investment_min_usd')
+                    m['primary_category'] = fresh.get('primary_category')
+                    # Only update description if missing to preserve any custom overrides (though currently none)
+                    if not m.get('description_text'):
+                         m['description_text'] = fresh.get('description_text')
+
+        return matches
     except Exception as e:
         logger.error(f"Error fetching matches for lead {lead_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/{lead_id}/recommendations", response_model=List[dict])
+async def save_lead_recommendations(lead_id: int, matches: List[dict] = Body(...)):
+    """
+    Save or replace the list of franchise recommendations for a lead.
+    This overwrites the 'matches' JSONB column.
+    """
+    try:
+        # Validate lead exists
+        lead_res = supabase_client().table("leads").select("id").eq("id", lead_id).execute()
+        if not lead_res.data:
+            raise HTTPException(status_code=404, detail="Lead not found")
+
+        # Update matches
+        response = supabase_client().table("leads")\
+            .update({"matches": matches, "updated_at": "now()"})\
+            .eq("id", lead_id)\
+            .execute()
+            
+        if not response.data:
+            raise HTTPException(status_code=500, detail="Failed to save recommendations")
+            
+        return response.data[0].get("matches", [])
+    except Exception as e:
+        logger.error(f"Error saving recommendations for lead {lead_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{lead_id}/comparison-selections", response_model=List[int])
+async def get_comparison_selections(lead_id: int):
+    """Get saved comparison selections (franchise IDs)"""
+    try:
+        response = supabase_client().table("leads").select("comparison_selections").eq("id", lead_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Lead not found")
+        
+        selections = response.data[0].get("comparison_selections") or []
+        return selections
+    except Exception as e:
+        logger.error(f"Error fetching comparison selections for lead {lead_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/{lead_id}/comparison-selections", response_model=List[int])
+async def save_comparison_selections(lead_id: int, franchise_ids: List[int] = Body(...)):
+    """Save comparison selections"""
+    try:
+        response = supabase_client().table("leads")\
+            .update({"comparison_selections": franchise_ids, "updated_at": "now()"})\
+            .eq("id", lead_id)\
+            .execute()
+            
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Lead not found")
+            
+        return response.data[0].get("comparison_selections") or []
+    except Exception as e:
+        logger.error(f"Error saving comparison selections for lead {lead_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{lead_id}/comparison-analysis", response_model=Optional[dict])
+async def get_comparison_analysis(lead_id: int):
+    """Get saved comparison analysis"""
+    try:
+        response = supabase_client().table("leads").select("comparison_analysis").eq("id", lead_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Lead not found")
+            
+        analysis = response.data[0].get("comparison_analysis")
+        return analysis
+    except Exception as e:
+        logger.error(f"Error fetching comparison analysis for lead {lead_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/{lead_id}/comparison-analysis", response_model=dict)
+async def save_comparison_analysis(lead_id: int, analysis: dict = Body(...)):
+    """Save comparison analysis"""
+    try:
+        response = supabase_client().table("leads")\
+            .update({"comparison_analysis": analysis, "updated_at": "now()"})\
+            .eq("id", lead_id)\
+            .execute()
+            
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Lead not found")
+            
+        return response.data[0].get("comparison_analysis") or {}
+    except Exception as e:
+        logger.error(f"Error saving comparison analysis for lead {lead_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -168,6 +168,25 @@ export async function getLead(id: number): Promise<Lead> {
     }
 }
 
+export async function updateLeadProfile(leadId: number, profileData: LeadProfile): Promise<Lead> {
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile_data: profileData }),
+    });
+    
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Failed to update lead profile: ${error}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Error updating lead profile ${leadId}:`, error);
+    throw error;
+  }
+}
+
 export async function deleteLead(id: number): Promise<void> {
   try {
     const response = await fetch(`http://127.0.0.1:8000/api/leads/${id}`, {
@@ -197,17 +216,100 @@ export async function getLeadMatches(id: number): Promise<FranchiseMatch[]> {
         if (!response.ok) throw new Error('Failed to fetch matches');
         const data = await response.json();
         
-        // Map to FranchiseMatch interface
-        return data.map((m: any) => ({
-            id: String(m.id),
-            name: m.franchise_name,
-            description: m.description_text || 'No description available',
-            investment_min: m.total_investment_min_usd || 0,
-            match_score: Math.round(m.similarity * 100),
-            why_narrative: m.why_narrative
-        }));
+        // Map to FranchiseMatch interface with robust fallbacks
+        return data.map((m: any) => {
+            // Handle potential field variations (DB storage vs API response)
+            const name = m.name || m.franchise_name || 'Unknown Franchise';
+            const description = m.description || m.description_text || 'No description available';
+            // Prioritize total_investment_min_usd (fresh DB value) over investment_min (potentially stale JSONB)
+            const investment = m.total_investment_min_usd ?? m.investment_min ?? 0;
+            
+            // Handle match score: could be 'similarity' (0-1) or 'match_score' (0-100)
+            let score = 0;
+            if (typeof m.match_score === 'number') {
+                score = m.match_score;
+            } else if (typeof m.similarity === 'number') {
+                score = Math.round(m.similarity * 100);
+            }
+            
+            return {
+                id: String(m.id),
+                name,
+                description,
+                investment_min: investment,
+                match_score: score,
+                why_narrative: m.why_narrative || 'Matched based on profile criteria.'
+            };
+        });
     } catch (error) {
         console.error(`Error fetching matches for lead ${id}:`, error);
         throw error;
     }
+}
+
+// --- Comparison Actions ---
+
+export async function getLeadComparisonSelections(leadId: number): Promise<number[]> {
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}/comparison-selections`, {
+      cache: 'no-store'
+    });
+    if (!response.ok) {
+        // If 404, just return empty list
+        if (response.status === 404) return [];
+        throw new Error('Failed to fetch comparison selections');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching comparison selections for lead ${leadId}:`, error);
+    return [];
+  }
+}
+
+export async function saveLeadComparisonSelections(leadId: number, franchiseIds: number[]): Promise<number[]> {
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}/comparison-selections`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(franchiseIds),
+    });
+    
+    if (!response.ok) throw new Error('Failed to save comparison selections');
+    return await response.json();
+  } catch (error) {
+    console.error(`Error saving comparison selections for lead ${leadId}:`, error);
+    throw error;
+  }
+}
+
+export async function getLeadComparisonAnalysis(leadId: number): Promise<any> {
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}/comparison-analysis`, {
+      cache: 'no-store'
+    });
+    if (!response.ok) {
+         if (response.status === 404) return null;
+         throw new Error('Failed to fetch comparison analysis');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching comparison analysis for lead ${leadId}:`, error);
+    return null;
+  }
+}
+
+export async function saveLeadComparisonAnalysis(leadId: number, analysis: any): Promise<any> {
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}/comparison-analysis`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(analysis),
+    });
+    
+    if (!response.ok) throw new Error('Failed to save comparison analysis');
+    return await response.json();
+  } catch (error) {
+    console.error(`Error saving comparison analysis for lead ${leadId}:`, error);
+    throw error;
+  }
 }

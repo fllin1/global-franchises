@@ -1,7 +1,8 @@
-'use client';
-
-import { TerritoryFranchise } from '@/types';
-import { CheckCircle2, AlertCircle, XCircle, DollarSign, Briefcase } from 'lucide-react';
+import React from 'react';
+import Link from 'next/link';
+import { ArrowRight, DollarSign, ExternalLink } from 'lucide-react';
+import { TerritoryFranchise, ComparisonResponse } from '@/types';
+import { useComparison } from '@/contexts/ComparisonContext';
 
 interface TerritoryFranchiseListProps {
   franchises: TerritoryFranchise[];
@@ -10,6 +11,8 @@ interface TerritoryFranchiseListProps {
 }
 
 export default function TerritoryFranchiseList({ franchises, isLoading, stateCode }: TerritoryFranchiseListProps) {
+  const { selectedIds, toggleComparison } = useComparison();
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-3">
@@ -28,95 +31,83 @@ export default function TerritoryFranchiseList({ franchises, isLoading, stateCod
 
   if (!stateCode) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-          <Briefcase className="w-6 h-6 text-slate-400" />
+      <div className="text-center py-12 px-4">
+        <div className="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+          <DollarSign className="w-8 h-8 text-indigo-600" />
         </div>
-        <h3 className="text-base font-medium text-slate-900 mb-1">Select a Territory</h3>
-        <p className="text-sm text-slate-500 max-w-xs">
-          Click a state on the map to view opportunities.
-        </p>
+        <h3 className="text-lg font-semibold text-slate-900 mb-1">Select a State</h3>
+        <p className="text-slate-500 text-sm">Choose a state on the map to view available franchise opportunities.</p>
       </div>
     );
   }
 
   if (franchises.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center">
-        <XCircle className="w-10 h-10 text-slate-300 mb-3" />
-        <h3 className="text-base font-medium text-slate-900">No Franchises Found</h3>
-        <p className="text-sm text-slate-500 mt-1">
-          No available franchises in {stateCode}.
-        </p>
+      <div className="text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+        <p className="text-slate-500">No franchises found in {stateCode}.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {franchises.map((franchise) => {
-        // Parse categories that come as stringified arrays e.g. "['Category']"
-        const categories = franchise.primary_category
-          ? franchise.primary_category.replace(/[\[\]"']/g, '').split(',').map(s => s.trim()).filter(Boolean)
-          : [];
+    <div className="flex flex-col gap-3 pb-20">
+      <div className="flex items-center justify-between mb-2">
+         <div className="text-sm text-slate-500">
+            Found <span className="font-semibold text-slate-900">{franchises.length}</span> opportunities in {stateCode}
+         </div>
+      </div>
 
+      {franchises.map((franchise) => {
+        const isSelected = selectedIds.includes(String(franchise.id));
         return (
           <div 
-            key={franchise.id} 
-            className="group bg-white rounded-lg p-3 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all duration-200 flex flex-col"
+            key={franchise.id}
+            className={`
+              group relative bg-white rounded-lg p-4 border transition-all hover:shadow-md
+              ${isSelected ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/10' : 'border-slate-200 hover:border-indigo-300'}
+            `}
           >
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1 text-sm">
-                {franchise.franchise_name}
-              </h3>
-              <AvailabilityBadge status={franchise.availability_status} />
+            <div className="absolute top-4 left-3 z-10">
+               <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleComparison(String(franchise.id))}
+                    className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                />
             </div>
 
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {categories.map((cat, idx) => (
-                <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-slate-50 text-[10px] font-medium text-slate-600 border border-slate-100">
-                  {cat}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-auto pt-2 border-t border-slate-50 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1 text-slate-600">
-                <DollarSign className="w-3 h-3 text-slate-400" />
-                <span>Min: ${franchise.total_investment_min_usd?.toLocaleString() || 'N/A'}</span>
+            <Link href={`/franchises/${franchise.id}`} className="block pl-7">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                  {franchise.franchise_name}
+                </h3>
+                {franchise.investment_min > 0 && (
+                  <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                    From ${franchise.investment_min.toLocaleString()}
+                  </span>
+                )}
               </div>
-            </div>
+              
+              <div className="flex flex-wrap gap-2 mb-3">
+                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                   {franchise.category || 'Franchise'}
+                </span>
+                <span className={`text-xs px-2 py-0.5 rounded ${
+                    franchise.availability_status === 'Available' 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                    {franchise.availability_status}
+                </span>
+              </div>
+              
+              <div className="flex items-center text-indigo-600 text-xs font-medium group-hover:underline">
+                View Details <ArrowRight className="w-3 h-3 ml-1" />
+              </div>
+            </Link>
           </div>
         );
       })}
     </div>
   );
-}
-
-function AvailabilityBadge({ status }: { status: TerritoryFranchise['availability_status'] }) {
-  switch (status) {
-    case 'Available':
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium uppercase tracking-wide border border-emerald-100">
-          <CheckCircle2 className="w-3 h-3" />
-          Available
-        </span>
-      );
-    case 'Limited':
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-700 text-[10px] font-medium uppercase tracking-wide border border-amber-100">
-          <AlertCircle className="w-3 h-3" />
-          Limited
-        </span>
-      );
-    case 'Not Available':
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-medium uppercase tracking-wide border border-slate-200">
-          <XCircle className="w-3 h-3" />
-          Unavailable
-        </span>
-      );
-    default:
-      return null;
-  }
 }
