@@ -3,3 +3,4 @@ ADD COLUMN IF NOT EXISTS comparison_selections JSONB DEFAULT NULL,
 ADD COLUMN IF NOT EXISTS comparison_analysis JSONB DEFAULT NULL;
 
 
+
