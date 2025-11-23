@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Railway Deployment**:
+  - Implemented `start.sh` entrypoint script to reliably handle dynamic port assignment from Railway's `$PORT` environment variable.
+  - Resolved `Error: Invalid value for '--port': '$PORT' is not a valid integer` by moving the startup command and port expansion logic into a bash script instead of relying on Dockerfile shell expansion.
+  - Updated `Dockerfile` to copy and execute `start.sh`.
   - Fixed Railway healthcheck failure by updating `Dockerfile` CMD to bind to the dynamic `$PORT` environment variable (`CMD uvicorn ... --port ${PORT:-8000}`).
   - Previously, the app was hardcoded to listen on port 8000, while Railway expected it to listen on the dynamically assigned `$PORT`.
   - Increased healthcheck timeout to 300s and interval to 60s in `railway.json` to allow more startup time.

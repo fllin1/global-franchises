@@ -34,14 +34,16 @@ RUN poetry install --no-interaction --no-ansi --no-root
 
 # Copy application code
 COPY src/ ./src/
+COPY start.sh ./
 COPY README.md LICENSE ./
 
 # Install the project itself
 RUN poetry install --no-interaction --no-ansi
+RUN chmod +x start.sh
 
 # Expose port
 EXPOSE 8000
 
 # Start command
-CMD uvicorn src.backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD ["./start.sh"]
 
