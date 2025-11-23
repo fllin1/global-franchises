@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Vercel Deployment**:
+  - Fixed missing `@/lib/api` module error by adding exception to `.gitignore` to allow `frontend/src/lib/` directory to be tracked (`frontend/src/lib/api.ts` is now committed).
+  - Added missing `leaflet`, `react-leaflet`, and `@types/leaflet` packages to `frontend/package.json` to resolve build errors in `FranchiseTerritoryMap.client.tsx`.
   - Fixed npm peer dependency conflict between React 19 and `react-simple-maps@3.0.0` by adding `--legacy-peer-deps` flag to the install command in `frontend/vercel.json`.
   - This allows Vercel builds to succeed despite `react-simple-maps` not officially supporting React 19 yet (React 19 is backward compatible).
 
