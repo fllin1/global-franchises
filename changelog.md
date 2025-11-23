@@ -9,12 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Deployment Configuration**:
-  - Created `railway.json` for Railway backend deployment configuration with Poetry build setup and uvicorn start command (`railway.json`).
-  - Created `nixpacks.toml` for Nixpacks build configuration with Python 3.12 and Poetry installation steps (`nixpacks.toml`).
+  - Created `railway.json` for Railway backend deployment configuration with Nixpacks build setup, Python 3.12 installation, and Poetry dependency management (`railway.json`).
+  - Created `runtime.txt` file to specify Python 3.12.0 version for Railway deployment (`runtime.txt`).
   - Created `.python-version` file to specify Python 3.12.0 for Railway deployment (`.python-version`).
   - Created `vercel.json` for Vercel frontend deployment configuration with Next.js framework settings (`frontend/vercel.json`).
   - Created API configuration helper `getApiUrl` function for centralized API URL management (`frontend/src/lib/api.ts`).
   - Created `.env.example` file documenting frontend environment variables (`frontend/.env.example`).
+
+### Fixed
+- **Railway Deployment**:
+  - Fixed Railway build error "pip: command not found" by configuring Nixpacks to install Python 3.12 Full and GCC in the setup phase before installing Poetry (`railway.json`).
+  - Updated Railway configuration to use proper Nixpacks plan with explicit Python setup and Poetry installation steps.
 
 ### Changed
 - **Frontend API Calls**:
