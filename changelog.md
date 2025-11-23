@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Deployment Documentation**:
+  - Created comprehensive deployment guide (`docs/DEPLOYMENT.md`) with step-by-step instructions for Railway and Vercel deployment.
 - **Deployment Configuration**:
   - Dockerized the backend service:
     - Created `Dockerfile` with Python 3.12-slim base image and Poetry setup.
@@ -17,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created `vercel.json` for Vercel frontend deployment configuration with Next.js framework settings (`frontend/vercel.json`).
   - Created API configuration helper `getApiUrl` function for centralized API URL management (`frontend/src/lib/api.ts`).
   - Created `.env.example` file documenting frontend environment variables (`frontend/.env.example`).
+
+### Changed
+- **Backend CORS Configuration**:
+  - Made CORS origins configurable via `ALLOWED_ORIGINS` environment variable (comma-separated list) in `src/backend/main.py`.
+  - Defaults to `*` for development, but can be restricted to specific domains in production for better security.
 
 ### Fixed
 - **Railway Deployment**:
