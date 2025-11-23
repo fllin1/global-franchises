@@ -1,37 +1,18 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
-[project]
-name = "src"
+[tool.poetry]
+name = "franchisesglobal"
 version = "0.0.1"
 description = "A short description of the project."
-authors = [
-  { name = "Panda" },
-]
-license = { file = "LICENSE" }
+authors = ["Panda"]
+license = "MIT"
 readme = "README.md"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License"
-]
-requires-python = "~=3.12.0"
-
-
-[tool.ruff]
-line-length = 99
-src = ["src"]
-include = ["pyproject.toml", "src/**/*.py"]
-
-[tool.ruff.lint]
-extend-select = ["I"]  # Add import sorting
-
-[tool.ruff.lint.isort]
-known-first-party = ["src"]
-force-sort-within-sections = true
-
+packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
+python = "~3.12"
 supabase = "^2.17.0"
 openai = "^1.97.0"
 pandas = "^2.3.1"
@@ -48,3 +29,15 @@ typer = "^0.16.0"
 fastapi = "^0.121.2"
 uvicorn = "^0.38.0"
 pgeocode = "^0.5.0"
+
+[tool.ruff]
+line-length = 99
+src = ["src"]
+include = ["pyproject.toml", "src/**/*.py"]
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+force-sort-within-sections = true

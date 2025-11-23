@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created `.env.example` file documenting frontend environment variables (`frontend/.env.example`).
 
 ### Fixed
+- **Deployment Configuration**:
+  - Converted `pyproject.toml` from Flit to standard Poetry configuration.
+  - Fixed `KeyError: 'name'` during Docker build by adding proper `[tool.poetry]` metadata section.
+  - Standardized build backend to `poetry-core`.
 - **Railway Deployment**:
   - Resolved persistent "pip: command not found" and "No module named pip" errors by switching from Nixpacks to a custom Dockerfile.
   - The Dockerfile explicitly installs system dependencies, bootstraps Poetry, and installs Python packages in a controlled environment.
