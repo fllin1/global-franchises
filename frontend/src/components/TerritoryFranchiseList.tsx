@@ -81,16 +81,16 @@ export default function TerritoryFranchiseList({ franchises, isLoading, stateCod
                 <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
                   {franchise.franchise_name}
                 </h3>
-                {franchise.investment_min > 0 && (
+                {franchise.total_investment_min_usd > 0 && (
                   <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap">
-                    From ${franchise.investment_min.toLocaleString()}
+                    From ${franchise.total_investment_min_usd.toLocaleString()}
                   </span>
                 )}
               </div>
               
               <div className="flex flex-wrap gap-2 mb-3">
                 <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                   {franchise.category || 'Franchise'}
+                   {franchise.primary_category || 'Franchise'}
                 </span>
                 <span className={`text-xs px-2 py-0.5 rounded ${
                     franchise.availability_status === 'Available' 
