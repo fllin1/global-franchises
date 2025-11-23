@@ -19,11 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created `.env.example` file documenting frontend environment variables (`frontend/.env.example`).
 
 ### Fixed
-- **Deployment Configuration**:
+- **Railway Deployment**:
+  - Fixed Railway healthcheck failure by updating `Dockerfile` CMD to bind to the dynamic `$PORT` environment variable (`CMD uvicorn ... --port ${PORT:-8000}`).
+  - Previously, the app was hardcoded to listen on port 8000, while Railway expected it to listen on the dynamically assigned `$PORT`.
+  - Increased healthcheck timeout to 300s and interval to 60s in `railway.json` to allow more startup time.
   - Converted `pyproject.toml` from Flit to standard Poetry configuration.
   - Fixed `KeyError: 'name'` during Docker build by adding proper `[tool.poetry]` metadata section.
   - Standardized build backend to `poetry-core`.
-- **Railway Deployment**:
   - Resolved persistent "pip: command not found" and "No module named pip" errors by switching from Nixpacks to a custom Dockerfile.
   - The Dockerfile explicitly installs system dependencies, bootstraps Poetry, and installs Python packages in a controlled environment.
 
