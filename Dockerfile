@@ -34,6 +34,7 @@ RUN poetry install --no-interaction --no-ansi --no-root
 
 # Copy application code
 COPY src/ ./src/
+COPY config/ ./config/
 COPY start.sh ./
 COPY README.md LICENSE ./
 

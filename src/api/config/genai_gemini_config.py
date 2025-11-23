@@ -12,9 +12,14 @@ from google.genai import types
 
 from src.config import CONFIG_DIR
 
-CLIENT = genai.Client(
-    api_key=os.environ.get("GEMINI_API_KEY"),
-)
+try:
+    CLIENT = genai.Client(
+        api_key=os.environ.get("GEMINI_API_KEY"),
+    )
+except Exception as e:
+    print(f"Warning: Failed to initialize Gemini Client: {e}")
+    CLIENT = None
+
 MODEL_PRO = "gemini-2.5-pro"
 MODEL_FLASH = "gemini-2.5-flash"
 MODEL_FLASH_LITE = "gemini-2.5-flash-lite"
