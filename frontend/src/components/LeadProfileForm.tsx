@@ -151,26 +151,26 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
             <NumberInput 
               label="Liquidity (Cash)" 
               value={profile.liquidity} 
-              onChange={(v) => handleChange('liquidity', v)}
+              onChange={(v: number | null) => handleChange('liquidity', v)}
               prefix="$"
             />
             <NumberInput 
               label="Net Worth" 
               value={profile.net_worth} 
-              onChange={(v) => handleChange('net_worth', v)}
+              onChange={(v: number | null) => handleChange('net_worth', v)}
               prefix="$"
             />
             <NumberInput 
               label="Investment Cap" 
               value={profile.investment_cap} 
-              onChange={(v) => handleChange('investment_cap', v)}
+              onChange={(v: number | null) => handleChange('investment_cap', v)}
               prefix="$"
             />
             <div className="md:col-span-2">
               <TextInput 
                 label="Investment Source" 
                 value={profile.investment_source} 
-                onChange={(v) => handleChange('investment_source', v)}
+                onChange={(v: string) => handleChange('investment_source', v)}
                 placeholder="e.g., HELOC, 401k Rollover, SBA Loan"
               />
             </div>
@@ -178,7 +178,7 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
                <TextInput 
                 label="Credit Score / Financial Notes" 
                 value={profile.interest} // Using 'interest' field for financial notes/interest as discussed
-                onChange={(v) => handleChange('interest', v)}
+                onChange={(v: string) => handleChange('interest', v)}
                 placeholder="e.g. 720+, Bankruptcy 2010"
               />
             </div>
@@ -197,19 +197,19 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
                 <SelectInput
                   label="Role Preference"
                   value={profile.role_preference}
-                  onChange={(v) => handleChange('role_preference', v)}
+                  onChange={(v: string | null) => handleChange('role_preference', v)}
                   options={['Owner-Operator', 'Semi-Absentee', 'Absentee', 'Executive']}
                 />
                 <SelectInput
                   label="Business Model"
                   value={profile.business_model_preference}
-                  onChange={(v) => handleChange('business_model_preference', v)}
+                  onChange={(v: string | null) => handleChange('business_model_preference', v)}
                   options={['B2B', 'B2C', 'B2B & B2C']}
                 />
                 <SelectInput
                   label="Staff Preference"
                   value={profile.staff_preference}
-                  onChange={(v) => handleChange('staff_preference', v)}
+                  onChange={(v: string | null) => handleChange('staff_preference', v)}
                   options={['No Staff / Solopreneur', 'Small Staff (1-5)', 'Medium Staff (5-15)', 'Large Staff (15+)']}
                 />
              </div>
@@ -218,22 +218,22 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
                 <Checkbox 
                   label="Home Based" 
                   checked={profile.home_based_preference} 
-                  onChange={(v) => handleChange('home_based_preference', v)} 
+                  onChange={(v: boolean) => handleChange('home_based_preference', v)} 
                 />
                 <Checkbox 
                   label="Semi-Absentee" 
                   checked={profile.semi_absentee_preference} 
-                  onChange={(v) => handleChange('semi_absentee_preference', v)} 
+                  onChange={(v: boolean) => handleChange('semi_absentee_preference', v)} 
                 />
                 <Checkbox 
                   label="Absentee" 
                   checked={profile.absentee_preference} 
-                  onChange={(v) => handleChange('absentee_preference', v)} 
+                  onChange={(v: boolean) => handleChange('absentee_preference', v)} 
                 />
                 <Checkbox 
                   label="Multi-Unit Opportunity" 
                   checked={profile.multi_unit_preference} 
-                  onChange={(v) => handleChange('multi_unit_preference', v)} 
+                  onChange={(v: boolean) => handleChange('multi_unit_preference', v)} 
                 />
              </div>
 
@@ -346,25 +346,25 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
               <TextInput 
                  label="Trigger Event" 
                  value={profile.trigger_event} 
-                 onChange={(v) => handleChange('trigger_event', v)}
+                 onChange={(v: string) => handleChange('trigger_event', v)}
                  placeholder="Why now? e.g. Layoff, Burnout"
               />
               <TextInput 
                  label="Current Status" 
                  value={profile.current_status} 
-                 onChange={(v) => handleChange('current_status', v)}
+                 onChange={(v: string) => handleChange('current_status', v)}
                  placeholder="e.g. Employed, Unemployed, Retired"
               />
               <SelectInput 
                  label="Experience Level" 
                  value={profile.experience_level} 
-                 onChange={(v) => handleChange('experience_level', v)}
+                 onChange={(v: string | null) => handleChange('experience_level', v)}
                  options={['First-time Business Owner', 'Serial Entrepreneur', 'Investor', 'Transitioning Executive']}
               />
               <SelectInput 
                  label="Timeline" 
                  value={profile.timeline} 
-                 onChange={(v) => handleChange('timeline', v)}
+                 onChange={(v: string | null) => handleChange('timeline', v)}
                  options={['ASAP', '1-3 Months', '3-6 Months', '6+ Months', 'Just Looking']}
               />
               <div className="md:col-span-2">
