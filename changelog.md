@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Deployment Configuration**:
-  - Created `railway.json` for Railway backend deployment configuration with Nixpacks build setup, Python 3.12 installation, and Poetry dependency management (`railway.json`).
-  - Created `runtime.txt` file to specify Python 3.12.0 version for Railway deployment (`runtime.txt`).
+  - Dockerized the backend service:
+    - Created `Dockerfile` with Python 3.12-slim base image and Poetry setup.
+    - Created `.dockerignore` to exclude frontend, data, and artifacts from the build context.
+  - Updated `railway.json` to use `DOCKERFILE` builder strategy instead of Nixpacks for more reliable builds.
   - Created `.python-version` file to specify Python 3.12.0 for Railway deployment (`.python-version`).
   - Created `vercel.json` for Vercel frontend deployment configuration with Next.js framework settings (`frontend/vercel.json`).
   - Created API configuration helper `getApiUrl` function for centralized API URL management (`frontend/src/lib/api.ts`).
@@ -18,9 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Railway Deployment**:
-  - Fixed "No module named pip" error by adding `python -m ensurepip --default-pip` to the install commands in `railway.json`.
-  - Fixed Railway build error "pip: command not found" by configuring Nixpacks to install Python 3.12 Full and GCC in the setup phase before installing Poetry (`railway.json`).
-  - Updated Railway configuration to use proper Nixpacks plan with explicit Python setup and Poetry installation steps.
+  - Resolved persistent "pip: command not found" and "No module named pip" errors by switching from Nixpacks to a custom Dockerfile.
+  - The Dockerfile explicitly installs system dependencies, bootstraps Poetry, and installs Python packages in a controlled environment.
 
 ### Changed
 - **Frontend API Calls**:
