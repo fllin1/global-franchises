@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Railway Deployment**:
+  - Fixed "No module named pip" error by adding `python -m ensurepip --default-pip` to the install commands in `railway.json`.
   - Fixed Railway build error "pip: command not found" by configuring Nixpacks to install Python 3.12 Full and GCC in the setup phase before installing Poetry (`railway.json`).
   - Updated Railway configuration to use proper Nixpacks plan with explicit Python setup and Poetry installation steps.
 
