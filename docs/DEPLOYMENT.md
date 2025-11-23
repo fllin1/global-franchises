@@ -56,7 +56,9 @@ Save this URL - you'll need it for the frontend configuration.
 - **Root Directory**: `frontend`
 - **Build Command**: `npm run build` (auto-detected)
 - **Output Directory**: `.next` (auto-detected)
-- **Install Command**: `npm install` (auto-detected)
+- **Install Command**: `npm install --legacy-peer-deps` (configured in `vercel.json`)
+
+**Note**: The `--legacy-peer-deps` flag is required because `react-simple-maps@3.0.0` doesn't officially support React 19 yet, but React 19 is backward compatible and works fine.
 
 ### Step 3: Add Environment Variables
 

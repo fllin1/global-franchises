@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created API configuration helper `getApiUrl` function for centralized API URL management (`frontend/src/lib/api.ts`).
   - Created `.env.example` file documenting frontend environment variables (`frontend/.env.example`).
 
+### Fixed
+- **Vercel Deployment**:
+  - Fixed npm peer dependency conflict between React 19 and `react-simple-maps@3.0.0` by adding `--legacy-peer-deps` flag to the install command in `frontend/vercel.json`.
+  - This allows Vercel builds to succeed despite `react-simple-maps` not officially supporting React 19 yet (React 19 is backward compatible).
+
 ### Changed
 - **Backend CORS Configuration**:
   - Made CORS origins configurable via `ALLOWED_ORIGINS` environment variable (comma-separated list) in `src/backend/main.py`.
