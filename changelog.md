@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Backend Startup & Logging**:
+  - Added startup and shutdown event handlers to `main.py` for better visibility into application lifecycle (`src/backend/main.py`).
+  - Improved error handling in `supabase_config.py` to raise exceptions instead of calling `sys.exit(1)`, allowing FastAPI to handle errors gracefully (`src/api/config/supabase_config.py`).
+  - Enhanced health check endpoint to include Supabase configuration status.
+  - Improved `start.sh` script with better logging and explicit uvicorn configuration for Railway deployment.
+  - Added detailed logging for environment variable validation and CORS configuration during startup.
+- **Error Handling**:
+  - Improved error handling in `LeadsPage` component to display connection errors to users instead of silently failing (`frontend/src/app/leads/page.tsx`).
+  - Added error state and retry functionality when backend API connection fails.
+  - Users will now see a clear error message if the frontend cannot connect to the backend API.
 - **Vercel Deployment**:
   - Fixed TypeScript compilation error for missing type declarations for `react-simple-maps` module (`frontend/src/types/react-simple-maps.d.ts`).
   - Created TypeScript declaration file with proper type definitions for `ComposableMap`, `Geographies`, and `Geography` components used in `TerritoryMap.tsx`.

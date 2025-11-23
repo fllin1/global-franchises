@@ -9,6 +9,7 @@ import { Lead } from '@/types';
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('all'); // all, tier_1, tier_2
 
   useEffect(() => {
@@ -18,10 +19,15 @@ export default function LeadsPage() {
   async function loadLeads() {
     try {
       setIsLoading(true);
+      setError(null);
       const data = await getLeads();
       setLeads(data);
     } catch (error) {
-      console.error(error);
+      console.error('Error loading leads:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to connect to backend API. Please check your connection and try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -71,6 +77,20 @@ export default function LeadsPage() {
 
       {isLoading ? (
         <div className="text-center py-20 text-slate-400">Loading leads...</div>
+      ) : error ? (
+        <div className="text-center py-20 bg-white rounded-xl border border-red-200">
+            <div className="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-3">
+                <Search className="w-6 h-6 text-red-400" />
+            </div>
+            <h3 className="text-red-900 font-medium mb-1">Connection Error</h3>
+            <p className="text-red-600 text-sm mb-4">{error}</p>
+            <button 
+              onClick={loadLeads}
+              className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
+            >
+                Retry
+            </button>
+        </div>
       ) : filteredLeads.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-xl border border-slate-200 border-dashed">
             <div className="mx-auto w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">

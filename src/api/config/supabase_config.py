@@ -28,10 +28,16 @@ def supabase_client():
     supabase_key = os.environ.get("SUPABASE_KEY")
 
     if not supabase_url or not supabase_key:
-        logger.error("Error: SUPABASE_URL and SUPABASE_KEY must be set in your .env file.")
-        sys.exit(1)
+        error_msg = "SUPABASE_URL and SUPABASE_KEY must be set as environment variables."
+        logger.error(error_msg)
+        # Raise exception instead of sys.exit to allow FastAPI to handle it gracefully
+        raise ValueError(error_msg)
 
     logger.info("Initializing Supabase client...")
-    supabase: Client = create_client(supabase_url, supabase_key)
-
-    return supabase
+    try:
+        supabase: Client = create_client(supabase_url, supabase_key)
+        logger.info("Supabase client initialized successfully")
+        return supabase
+    except Exception as e:
+        logger.error(f"Failed to initialize Supabase client: {e}")
+        raise

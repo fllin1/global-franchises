@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import uvicorn
+import os
 from loguru import logger
 
 from src.backend.models import LeadProfile
@@ -16,13 +17,48 @@ from src.backend.comparison import router as comparison_router
 
 app = FastAPI(title="Franchise Matcher API")
 
+# Startup event handler
+@app.on_event("startup")
+async def startup_event():
+    """Log startup information and verify configuration"""
+    logger.info("=" * 60)
+    logger.info("FastAPI Application Starting Up")
+    logger.info("=" * 60)
+    
+    # Log environment info
+    port = os.getenv("PORT", "8000")
+    logger.info(f"Server will run on port: {port}")
+    
+    # Check critical environment variables (don't fail, just log)
+    required_vars = ["SUPABASE_URL", "SUPABASE_KEY"]
+    missing = [var for var in required_vars if not os.getenv(var)]
+    if missing:
+        logger.warning(f"⚠️  Missing environment variables: {missing}")
+    else:
+        logger.info("✅ All required environment variables are set")
+    
+    # Log CORS configuration
+    allowed_origins = os.getenv("ALLOWED_ORIGINS", "*")
+    logger.info(f"CORS allowed origins: {allowed_origins}")
+    
+    logger.info("=" * 60)
+    logger.info("Application startup complete - ready to accept requests")
+    logger.info("=" * 60)
+
+# Shutdown event handler
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Log shutdown information"""
+    logger.info("=" * 60)
+    logger.info("FastAPI Application Shutting Down")
+    logger.info("=" * 60)
+
 # Include Routers
 app.include_router(leads_router)
 app.include_router(franchises_router)
 app.include_router(comparison_router)
 
 # CORS configuration
-import os
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -37,7 +73,13 @@ class AnalyzeLeadRequest(BaseModel):
 
 @app.get("/")
 async def health_check():
-    return {"status": "ok", "service": "franchise-matcher-backend"}
+    """Health check endpoint for Railway"""
+    logger.info("Health check endpoint called")
+    return {
+        "status": "ok", 
+        "service": "franchise-matcher-backend",
+        "supabase_configured": bool(os.getenv("SUPABASE_URL"))
+    }
 
 @app.post("/analyze-lead")
 async def analyze_lead(request: AnalyzeLeadRequest):
