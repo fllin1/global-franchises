@@ -47,3 +47,4 @@ declare module 'react-simple-maps' {
   export const Geography: ComponentType<GeographyProps>;
 }
 
+

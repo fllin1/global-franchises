@@ -7,13 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **HTML to Markdown Pipeline**:
+  - Added `markdownify` dependency to `pyproject.toml` for HTML to Markdown conversion.
+  - Extended `StorageClient` class (`src/data/storage/storage_client.py`) with:
+    - `upload_json()` method for uploading JSON files to Supabase Storage.
+    - `upload_markdown()` method for uploading Markdown files to Supabase Storage.
+    - `download_markdown()` method for downloading Markdown files from storage.
+  - Created `html_to_markdown.py` module (`src/data/franserve/html_to_markdown.py`) with `convert_html_to_markdown()` function using markdownify library.
+  - Created `markdown_prompt.txt` (`config/franserve/markdown_prompt.txt`) with specialized prompt for extracting structured JSON from Markdown format.
+  - Enhanced `Extractor` class (`src/data/functions/extract.py`) with:
+    - `convert_html_to_markdown_and_upload()` method that downloads HTML from storage, converts to Markdown, and uploads to storage.
+    - `markdown_to_json_parsing()` method that uses LLM to convert Markdown files to JSON format.
+  - Updated `rule_based_parsing()` method to upload JSON output to Supabase Storage in addition to saving locally.
+  - Pipeline now supports three formats in storage: HTML, JSON (rule-based), and Markdown.
+
 ### Fixed
+- **CORS Configuration**:
+  - Fixed CORS origin matching by stripping whitespace and trailing slashes from allowed origins (`src/backend/main.py`).
+  - CORS origins are now properly normalized (e.g., `https://app.vercel.app/` becomes `https://app.vercel.app`) to prevent mismatches.
+  - Added detailed logging of processed CORS origins for debugging.
+  - This resolves CORS errors where origins with trailing slashes were not matching requests from the frontend.
 - **Backend Startup & Logging**:
   - Added startup and shutdown event handlers to `main.py` for better visibility into application lifecycle (`src/backend/main.py`).
   - Improved error handling in `supabase_config.py` to raise exceptions instead of calling `sys.exit(1)`, allowing FastAPI to handle errors gracefully (`src/api/config/supabase_config.py`).
-  - Enhanced health check endpoint to include Supabase configuration status.
-  - Improved `start.sh` script with better logging and explicit uvicorn configuration for Railway deployment.
+  - Enhanced health check endpoint to include Supabase configuration status and removed verbose logging to reduce noise.
+  - Improved `start.sh` script with better logging, explicit uvicorn configuration, and `--timeout-keep-alive` for Railway healthchecks.
   - Added detailed logging for environment variable validation and CORS configuration during startup.
+  - Optimized Railway healthcheck configuration: reduced timeout to 10s and interval to 30s for faster detection (`railway.json`).
 - **Error Handling**:
   - Improved error handling in `LeadsPage` component to display connection errors to users instead of silently failing (`frontend/src/app/leads/page.tsx`).
   - Added error state and retry functionality when backend API connection fails.

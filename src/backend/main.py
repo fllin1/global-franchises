@@ -37,9 +37,9 @@ async def startup_event():
     else:
         logger.info("✅ All required environment variables are set")
     
-    # Log CORS configuration
-    allowed_origins = os.getenv("ALLOWED_ORIGINS", "*")
-    logger.info(f"CORS allowed origins: {allowed_origins}")
+    # Log CORS configuration (will be processed later in CORS middleware setup)
+    allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "*")
+    logger.info(f"CORS allowed origins (raw): {allowed_origins_raw}")
     
     logger.info("=" * 60)
     logger.info("Application startup complete - ready to accept requests")
@@ -59,7 +59,20 @@ app.include_router(franchises_router)
 app.include_router(comparison_router)
 
 # CORS configuration
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+# Process allowed origins: strip whitespace and trailing slashes
+allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "*")
+if allowed_origins_raw == "*":
+    allowed_origins = ["*"]
+else:
+    # Split by comma, strip whitespace, and remove trailing slashes
+    allowed_origins = [
+        origin.strip().rstrip("/") 
+        for origin in allowed_origins_raw.split(",") 
+        if origin.strip()
+    ]
+
+logger.info(f"CORS configured with {len(allowed_origins)} origin(s): {allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -72,9 +85,10 @@ class AnalyzeLeadRequest(BaseModel):
     notes: str
 
 @app.get("/")
+@app.get("/health")
 async def health_check():
-    """Health check endpoint for Railway"""
-    logger.info("Health check endpoint called")
+    """Health check endpoint for Railway - must respond quickly"""
+    # Don't log every healthcheck to reduce noise
     return {
         "status": "ok", 
         "service": "franchise-matcher-backend",

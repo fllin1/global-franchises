@@ -94,6 +94,87 @@ class StorageClient:
             logger.error(f"Failed to download {file_path}: {e}")
             raise e
 
+    def upload_json(
+        self, content: str, file_path: str, content_type: str = "application/json"
+    ) -> str:
+        """
+        Upload JSON content to Supabase Storage.
+
+        Args:
+            content (str): The JSON content to upload (as string).
+            file_path (str): The path within the bucket (e.g., '2025-01-20/123.json').
+            content_type (str): The MIME type of the content.
+
+        Returns:
+            str: The path of the uploaded file.
+        """
+        try:
+            # Convert string to bytes
+            file_bytes = content.encode("utf-8")
+
+            self.supabase.storage.from_(self.bucket_name).upload(
+                path=file_path,
+                file=file_bytes,
+                file_options={"content-type": content_type, "upsert": "true"},
+            )
+            logger.info(f"Uploaded {file_path} to {self.bucket_name}")
+            return file_path
+        except StorageException as e:
+            logger.error(f"Failed to upload {file_path}: {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Unexpected error uploading {file_path}: {e}")
+            raise e
+
+    def upload_markdown(
+        self, content: str, file_path: str, content_type: str = "text/markdown"
+    ) -> str:
+        """
+        Upload Markdown content to Supabase Storage.
+
+        Args:
+            content (str): The Markdown content to upload.
+            file_path (str): The path within the bucket (e.g., '2025-01-20/123.md').
+            content_type (str): The MIME type of the content.
+
+        Returns:
+            str: The path of the uploaded file.
+        """
+        try:
+            # Convert string to bytes
+            file_bytes = content.encode("utf-8")
+
+            self.supabase.storage.from_(self.bucket_name).upload(
+                path=file_path,
+                file=file_bytes,
+                file_options={"content-type": content_type, "upsert": "true"},
+            )
+            logger.info(f"Uploaded {file_path} to {self.bucket_name}")
+            return file_path
+        except StorageException as e:
+            logger.error(f"Failed to upload {file_path}: {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Unexpected error uploading {file_path}: {e}")
+            raise e
+
+    def download_markdown(self, file_path: str) -> str:
+        """
+        Download Markdown content from Supabase Storage.
+
+        Args:
+            file_path (str): The path within the bucket.
+
+        Returns:
+            str: The Markdown content.
+        """
+        try:
+            response = self.supabase.storage.from_(self.bucket_name).download(file_path)
+            return response.decode("utf-8")
+        except Exception as e:
+            logger.error(f"Failed to download {file_path}: {e}")
+            raise e
+
     def list_files(self, prefix: str = "") -> List[dict]:
         """
         List files in the storage bucket with a given prefix.

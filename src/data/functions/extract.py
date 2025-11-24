@@ -14,8 +14,9 @@ from urllib.parse import quote
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-from src.config import EXTERNAL_DATA_DIR, RAW_DATA_DIR
+from src.config import CONFIG_DIR, EXTERNAL_DATA_DIR, RAW_DATA_DIR
 from src.data.franserve.html_formatter import process_franchise_html
+from src.data.franserve.html_to_markdown import convert_html_to_markdown
 from src.data.franserve.html_to_prompt import (
     create_gemini_parts,
     format_html_for_llm,
@@ -35,6 +36,8 @@ from src.data.nlp.genai_data import (
     PROMPT_FRANSERVE_DATA,
     generate_franchise_data_with_retry,
 )
+
+PROMPT_MARKDOWN_DATA = (CONFIG_DIR / "franserve" / "markdown_prompt.txt").read_text()
 
 
 class Extractor(ExtractFileManager):
@@ -124,7 +127,7 @@ class Extractor(ExtractFileManager):
     def rule_based_parsing(self) -> None:
         """
         Run the rule-based parsing of the HTML files saved in Supabase Storage.
-        This will convert the HTML files to JSON files.
+        This will convert the HTML files to JSON files and upload JSON to storage.
         """
         storage_client = StorageClient()
         prefix = self.today_str
@@ -152,8 +155,14 @@ class Extractor(ExtractFileManager):
                 output_name = file_name.replace(".html", ".json")
                 output_path = self.raw_date_dir / "rule_based" / output_name
                 
+                # Save locally
                 with open(output_path, "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=4)
+                
+                # Upload JSON to storage
+                json_file_path = f"{prefix}/{output_name}"
+                json_content = json.dumps(data, indent=4)
+                storage_client.upload_json(json_content, json_file_path)
             except Exception as e:
                 print(f"Error parsing {file_name}: {e}")
 
@@ -212,3 +221,114 @@ class Extractor(ExtractFileManager):
 
         print(f"Failed to process {len(failed_files)} files out of {len(files)}.")
         print(f"Failed files: {failed_files}")
+
+    def convert_html_to_markdown_and_upload(self) -> None:
+        """
+        Convert HTML files from Supabase Storage to Markdown format and upload to storage.
+        Downloads HTML, converts to Markdown, and uploads Markdown files.
+        """
+        storage_client = StorageClient()
+        prefix = self.today_str
+        files = storage_client.list_files(prefix)
+
+        if not files:
+            print(f"No files found in storage for {prefix}")
+            return
+
+        successful_conversions = 0
+        failed_conversions = 0
+
+        for file_obj in tqdm(files, desc="Converting HTML to Markdown"):
+            file_name = file_obj.get("name")
+            # Skip if it's a directory or not html
+            if not file_name or not file_name.endswith(".html"):
+                continue
+
+            file_path = f"{prefix}/{file_name}"
+
+            try:
+                # Download HTML from storage
+                html_content = storage_client.download_html(file_path)
+
+                # Convert HTML to Markdown
+                markdown_content = convert_html_to_markdown(html_content)
+
+                # Upload Markdown to storage (same path structure, .md extension)
+                markdown_file_name = file_name.replace(".html", ".md")
+                markdown_file_path = f"{prefix}/{markdown_file_name}"
+                storage_client.upload_markdown(markdown_content, markdown_file_path)
+
+                successful_conversions += 1
+            except Exception as e:
+                print(f"Error converting {file_name} to Markdown: {e}")
+                failed_conversions += 1
+
+        print(f"Successfully converted {successful_conversions} files to Markdown.")
+        if failed_conversions > 0:
+            print(f"Failed to convert {failed_conversions} files.")
+
+    def markdown_to_json_parsing(self) -> None:
+        """
+        Run the AI-assisted parsing of Markdown files saved in Supabase Storage.
+        This will convert the Markdown files to JSON files using LLM.
+        """
+        storage_client = StorageClient()
+        prefix = self.today_str
+        files = storage_client.list_files(prefix)
+
+        if not files:
+            print(f"No files found in storage for {prefix}")
+            return
+
+        failed_files = []
+
+        for file_obj in tqdm(files, desc="AI Parsing Markdown from Storage"):
+            file_name = file_obj.get("name")
+            if not file_name or not file_name.endswith(".md"):
+                continue
+
+            file_path = f"{prefix}/{file_name}"
+
+            try:
+                # Download Markdown from storage
+                markdown_content = storage_client.download_markdown(file_path)
+
+                # Create parts for Gemini API
+                parts = create_gemini_parts(
+                    prompt=PROMPT_MARKDOWN_DATA,
+                    formatted_html=markdown_content,
+                )
+
+                # Generate franchise data with automatic retry
+                response_json = generate_franchise_data_with_retry(parts)
+
+                if response_json:
+                    # Try to get source_id from corresponding HTML file
+                    html_file_name = file_name.replace(".md", ".html")
+                    html_file_path = f"{prefix}/{html_file_name}"
+                    try:
+                        html_content = storage_client.download_html(html_file_path)
+                        soup = BeautifulSoup(html_content, "html.parser")
+                        fran_id_tag = soup.find("input", {"name": "ZorID"})
+                        if fran_id_tag and fran_id_tag.get("value"):
+                            response_json["source_id"] = int(fran_id_tag["value"])
+                    except Exception:
+                        # If we can't get source_id from HTML, continue without it
+                        pass
+                else:
+                    failed_files.append(file_name)
+
+                if response_json:
+                    # Save locally
+                    output_name = file_name.replace(".md", "_markdown.json")
+                    output_path = self.raw_date_dir / output_name
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        json.dump(response_json, f, indent=4)
+            except Exception as e:
+                print(f"Error processing {file_name}: {e}")
+                failed_files.append(file_name)
+
+        print(f"Failed to process {len(failed_files)} files out of {len(files)}.")
+        if failed_files:
+            print(f"Failed files: {failed_files}")
