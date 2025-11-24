@@ -109,13 +109,23 @@ def get_all_pages_franchise_urls(
     Returns:
         list[str]: A list of URLs to scrape.
     """
+    from loguru import logger
+    
     catalogue_urls = [
         f"{catalogue_base_url}&offset={i}" for i in range(0, offset_max, offset_step)
     ]
     franchise_urls = []
-    for catalogue_url in catalogue_urls:
-        franchise_urls.extend(get_page_franchise_urls(session, base_url, catalogue_url))
+    
+    logger.info(f"Processing {len(catalogue_urls)} catalogue pages (offset 0 to {offset_max} in steps of {offset_step})")
+    
+    for idx, catalogue_url in enumerate(catalogue_urls, 1):
+        offset = (idx - 1) * offset_step
+        logger.info(f"Extracting page {idx}/{len(catalogue_urls)} (offset={offset}): {catalogue_url}")
+        page_urls = get_page_franchise_urls(session, base_url, catalogue_url)
+        logger.info(f"  Found {len(page_urls)} franchise URLs on this page")
+        franchise_urls.extend(page_urls)
 
+    logger.info(f"Total franchise URLs collected: {len(franchise_urls)}")
     return franchise_urls
 
 

@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-24] - Scraper Run Script & Filename Fix
+
+### Fixed
+- **HTML to Markdown Conversion Pagination**:
+  - Fixed issue where only 100 files were processed when 765+ HTML files existed (`src/data/storage/storage_client.py`).
+  - Implemented pagination support in `list_files()` method to fetch all files across multiple pages.
+  - Added pagination loop with offset/limit to retrieve all files from Supabase Storage.
+  - Now correctly processes all HTML files, not just the first page.
+- **HTML to Markdown Conversion Logging**:
+  - Enhanced logging in `convert_html_to_markdown_and_upload()` method (`src/data/functions/extract.py`) to show:
+    - Total files found in storage
+    - Total HTML files to process
+    - Files being processed (every 10th file)
+    - Files being skipped (first 10, then summary)
+    - Progress updates every 50 files
+    - Comprehensive summary at completion showing converted/skipped/failed counts
+  - Users can now see which files are being processed and track progress accurately.
+
+### Changed
+- **Scraper Filename Format**:
+  - Changed filename format from URL-based (`franchisedetails.asp?FranID=1016&ClientID=.html`) to clean format (`FranID_1016.html`) (`src/data/functions/extract.py`).
+  - Extracts FranID from URL query parameters or HTML content.
+  - Eliminates URL encoding issues with special characters (`?`, `&`) in filenames.
+  - Makes filenames more readable and easier to work with programmatically.
+- **HTML to Markdown Conversion**:
+  - Enhanced `convert_html_to_markdown_and_upload()` method (`src/data/functions/extract.py`) to check if Markdown files already exist before converting HTML files.
+  - Skips HTML files that already have corresponding `.md` files in storage, preventing redundant processing.
+  - Added `skipped_conversions` counter and improved logging to show skipped vs processed files.
+  - Final summary now displays: "Converted: X, Skipped: Y, Failed: Z" for better visibility into conversion status.
+  - Allows safe re-runs of the conversion process without duplicating work.
+
+### Added
+- **Markdown Conversion Run Tracking**:
+  - Extended `scraping_runs` table with markdown conversion tracking fields (`docs/database/add_markdown_conversion_fields.sql`):
+    - `markdown_conversions_completed`, `markdown_conversions_failed`, `markdown_conversions_skipped` (integer counters)
+    - `markdown_conversion_status` (text: "pending", "in_progress", "completed", "failed", "partial")
+    - `markdown_conversion_started_at`, `markdown_conversion_completed_at` (timestamps)
+    - Index on `markdown_conversion_status` for efficient filtering
+  - Enhanced `convert_html_to_markdown_and_upload()` method (`src/data/functions/extract.py`) with run tracking:
+    - Creates/updates run records in `scraping_runs` table for each conversion session
+    - Tracks converted files in database metadata (`metadata.markdown_converted_files` array)
+    - Enables resumption from failures by checking metadata for already-converted files
+    - Updates run status and counts throughout the conversion process
+    - Periodically updates run record (every 50 files) to prevent data loss on interruption
+  - Created `run_html_to_markdown.py` script (`src/backend/scripts/run_html_to_markdown.py`) to execute conversion and display comprehensive results:
+    - Shows conversion run statistics (status, counts, timestamps)
+    - Displays storage file listing (HTML and Markdown files)
+    - Shows conversion ratio and sample converted files
+    - Displays sample Markdown content for verification
+
+### Fixed
+- **Storage Download Issues**:
+  - Fixed download failures caused by special characters (`?`, `&`) in filenames being interpreted as URL query parameters (`src/data/storage/storage_client.py`).
+  - Enhanced `download_html()` and `download_markdown()` methods to properly URL-encode filenames when needed.
+  - Added better error handling and debug logging for download operations.
+
+### Added
+- **Scraper Execution Script**:
+  - Created `run_scraper.py` script (`src/backend/scripts/run_scraper.py`) to execute the scraper and display comprehensive results.
+  - Script executes `Extractor.scrape()` method which:
+    - Logs into FranServe website using credentials from environment variables.
+    - Uses BeautifulSoup to extract HTML content from franchise pages.
+    - Uploads HTML files to Supabase Storage bucket.
+    - Tracks scraping runs in `scraping_runs` database table.
+  - Results display includes:
+    - **Statistics**: Queries `scraping_runs` table to show run ID, status, total franchises, successful/failed uploads, and storage prefix.
+    - **File Listing**: Lists all HTML files stored in Supabase Storage for today's date prefix, showing first 10 files with sizes and total count.
+    - **Sample HTML**: Downloads and displays a sample HTML file content (first 500 characters) to verify scraping results.
+  - Script handles errors gracefully and continues to show partial results even if scraping fails.
+
 ### Added
 - **HTML to Markdown Pipeline**:
   - Added `markdownify` dependency to `pyproject.toml` for HTML to Markdown conversion.

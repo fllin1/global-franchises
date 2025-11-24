@@ -844,6 +844,22 @@ rtd = ["jupyter_sphinx", "mdit-py-plugins", "myst-parser", "pyyaml", "sphinx", "
 testing = ["coverage", "pytest", "pytest-cov", "pytest-regressions"]
 
 [[package]]
+name = "markdownify"
+version = "0.12.1"
+description = "Convert HTML to markdown."
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "markdownify-0.12.1-py3-none-any.whl", hash = "sha256:a3805abd8166dbb7b27783c5599d91f54f10d79894b2621404d85b333c7ce561"},
+    {file = "markdownify-0.12.1.tar.gz", hash = "sha256:1fb08c618b30e0ee7a31a39b998f44a18fb28ab254f55f4af06b6d35a2179e27"},
+]
+
+[package.dependencies]
+beautifulsoup4 = ">=4.9,<5"
+six = ">=1.15,<2"
+
+[[package]]
 name = "markupsafe"
 version = "3.0.2"
 description = "Safely add untrusted strings to HTML/XML markup."
@@ -2108,5 +2124,5 @@ files = [
 
 [metadata]
 lock-version = "2.1"
-python-versions = "~=3.12.0"
-content-hash = "f1a57ed29d278ddd97258cb2e8d2fdc97ea389d2e5aac032485058784605690d"
+python-versions = "~3.12"
+content-hash = "e7f52a378216a9b8e6a4a3014fdaa76090d16e0187452000e2319b9d67fb1336"
