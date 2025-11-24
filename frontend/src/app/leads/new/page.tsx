@@ -25,16 +25,16 @@ export default function NewLeadPage() {
   return (
     <div className="max-w-2xl mx-auto p-6 md:p-12">
       <div className="mb-8 text-center">
-        <div className="mx-auto w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
-           <Sparkles className="w-8 h-8 text-indigo-600" />
+        <div className="mx-auto w-16 h-16 bg-indigo-50 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mb-4">
+           <Sparkles className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
         </div>
-        <h1 className="text-3xl font-bold text-slate-900">New Lead Analysis</h1>
-        <p className="text-slate-500 mt-2">Paste your raw notes below. AI will extract the profile and find matches.</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">New Lead Analysis</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-2">Paste your raw notes below. AI will extract the profile and find matches.</p>
       </div>
 
       <form action={handleSubmit} className="space-y-6">
         <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-slate-700 mb-2">
+          <label htmlFor="notes" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
             Broker Notes
           </label>
           <textarea
@@ -42,13 +42,13 @@ export default function NewLeadPage() {
             name="notes"
             rows={8}
             placeholder="Candidate John Smith, based in Austin TX. Has $150k liquid, interested in fitness..."
-            className="w-full p-4 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none shadow-sm text-base"
+            className="w-full p-4 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none shadow-sm text-base"
             required
           />
         </div>
 
         {error && (
-          <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-sm">
             {error}
           </div>
         )}
@@ -56,7 +56,7 @@ export default function NewLeadPage() {
         <button
           type="submit"
           disabled={isPending}
-          className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg"
+          className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 disabled:bg-indigo-400 dark:disabled:bg-indigo-800 text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg"
         >
           {isPending ? (
             <>

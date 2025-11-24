@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [2025-11-24] - Dark Mode & UI Fixes
+
+### Added
+- **Dark Mode Support**:
+  - Implemented comprehensive dark mode support across key frontend components using Tailwind CSS `dark:` variants.
+  - Added dark mode styles to `DashboardLayout` (`frontend/src/components/DashboardLayout.tsx`).
+  - Added dark mode styles to `LeadProfileForm` (`frontend/src/components/LeadProfileForm.tsx`).
+  - Added dark mode styles to `ComparisonTable` (`frontend/src/components/ComparisonTable.tsx`).
+  - Added dark mode styles to `MatchCard` (`frontend/src/components/MatchCard.tsx`).
+  - Added dark mode styles to `PersistentComparisonBar` (`frontend/src/components/PersistentComparisonBar.tsx`).
+  - Added dark mode styles to `NewLeadPage` (`frontend/src/app/leads/new/page.tsx`).
+
+### Fixed
+- **Lead Profile Form Input**:
+  - Fixed "Motives & Goals" textarea input issue where spaces were being trimmed immediately preventing multi-word entry (`frontend/src/components/LeadProfileForm.tsx`).
+  - Implemented local state `goalsInput` to preserve raw user input before processing into the tag array.
+- **UI Consistency**:
+  - Standardized color palette usage across components for both light and dark modes (Slate/Indigo/Red/Green/Yellow).
 
 ## [2025-11-24] - Scraper Run Script & Filename Fix
 

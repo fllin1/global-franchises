@@ -41,6 +41,7 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
   
   // Categories local state
   const [newCategory, setNewCategory] = useState('');
+  const [goalsInput, setGoalsInput] = useState(initialProfile.goals?.join(', ') || '');
 
   const toggleSection = (key: SectionKey) => {
     setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
@@ -120,10 +121,10 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-      <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-        <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-          <Briefcase className="w-5 h-5 text-indigo-600" />
+    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mb-8">
+      <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+        <h2 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <Briefcase className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           Lead Profile
         </h2>
         {isDirty && (
@@ -138,7 +139,7 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
         )}
       </div>
 
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-slate-100 dark:divide-slate-800">
         
         {/* MONEY SECTION */}
         <Section 
@@ -214,9 +215,9 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
                 />
              </div>
 
-             <div className="flex flex-wrap gap-6 p-4 bg-slate-50 rounded-lg border border-slate-100">
+             <div className="flex flex-wrap gap-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700">
                 <Checkbox 
-                  label="Home Based" 
+                  label="Home Based"  
                   checked={profile.home_based_preference} 
                   onChange={(v: boolean) => handleChange('home_based_preference', v)} 
                 />
@@ -238,35 +239,35 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
              </div>
 
              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Interested Categories</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Interested Categories</label>
                 <div className="flex gap-2 mb-3">
                    <input 
                       type="text" 
                       value={newCategory}
                       onChange={(e) => setNewCategory(e.target.value)}
                       placeholder="Add category (e.g. Fitness)"
-                      className="flex-1 rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                      className="flex-1 rounded-md border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
                       onKeyDown={(e) => e.key === 'Enter' && addCategory()}
                    />
                    <button 
                       onClick={addCategory}
                       type="button"
-                      className="px-3 py-2 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100"
+                      className="px-3 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
                    >
                       <Plus className="w-4 h-4" />
                    </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                    {profile.franchise_categories?.map((cat) => (
-                      <span key={cat} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                      <span key={cat} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200">
                         {cat}
-                        <button onClick={() => removeCategory(cat)} className="ml-1.5 text-indigo-600 hover:text-indigo-900">
+                        <button onClick={() => removeCategory(cat)} className="ml-1.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-200">
                            <X className="w-3 h-3" />
                         </button>
                       </span>
                    ))}
                    {(!profile.franchise_categories || profile.franchise_categories.length === 0) && (
-                      <span className="text-sm text-slate-400 italic">No specific categories selected</span>
+                      <span className="text-sm text-slate-400 dark:text-slate-500 italic">No specific categories selected</span>
                    )}
                 </div>
              </div>
@@ -283,22 +284,22 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
            <div className="space-y-4">
               <div className="flex gap-3 items-end">
                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Location / City</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Location / City</label>
                     <input 
                       type="text"
                       value={newTerritoryLocation}
                       onChange={(e) => setNewTerritoryLocation(e.target.value)}
-                      className="block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                      className="block w-full rounded-md border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
                       placeholder="e.g. Austin"
                     />
                  </div>
                  <div className="w-24">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">State</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">State</label>
                     <input 
                       type="text"
                       value={newTerritoryState}
                       onChange={(e) => setNewTerritoryState(e.target.value.toUpperCase().slice(0, 2))}
-                      className="block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                      className="block w-full rounded-md border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
                       placeholder="TX"
                       maxLength={2}
                     />
@@ -314,20 +315,20 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
 
               <div className="space-y-2">
                  {profile.territories?.map((terr, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded border border-slate-200">
-                       <span className="text-sm text-slate-800">
+                    <div key={index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded border border-slate-200 dark:border-slate-700">
+                       <span className="text-sm text-slate-800 dark:text-slate-200">
                           {terr.location} {terr.state_code ? `, ${terr.state_code}` : ''}
                        </span>
                        <button 
                           onClick={() => removeTerritory(index)}
-                          className="text-slate-400 hover:text-red-500"
+                          className="text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400"
                        >
                           <X className="w-4 h-4" />
                        </button>
                     </div>
                  ))}
                  {(!profile.territories || profile.territories.length === 0) && (
-                    <div className="text-sm text-slate-500 italic text-center py-4">
+                    <div className="text-sm text-slate-500 dark:text-slate-400 italic text-center py-4">
                        No territories added. Add at least one preferred territory.
                     </div>
                  )}
@@ -368,14 +369,17 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
                  options={['ASAP', '1-3 Months', '3-6 Months', '6+ Months', 'Just Looking']}
               />
               <div className="md:col-span-2">
-                 <label className="block text-sm font-medium text-slate-700 mb-1">Primary Goals</label>
+                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Primary Goals</label>
                  <textarea 
-                    className="block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border h-20"
-                    value={profile.goals?.join(', ') || ''}
-                    onChange={(e) => handleChange('goals', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                    className="block w-full rounded-md border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border h-20"
+                    value={goalsInput}
+                    onChange={(e) => {
+                      setGoalsInput(e.target.value);
+                      handleChange('goals', e.target.value.split(',').map(s => s.trim()).filter(Boolean));
+                    }}
                     placeholder="Separate goals by comma, e.g. Wealth Building, Time Freedom, Legacy"
                  />
-                 <p className="text-xs text-slate-500 mt-1">Separate goals with commas</p>
+                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Separate goals with commas</p>
               </div>
            </div>
         </Section>
@@ -389,16 +393,16 @@ export function LeadProfileForm({ initialProfile, onSave }: LeadProfileFormProps
 
 function Section({ title, icon: Icon, expanded, onToggle, children }: any) {
   return (
-    <div className="border-b border-slate-100 last:border-0">
+    <div className="border-b border-slate-100 dark:border-slate-800 last:border-0">
       <button 
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
       >
         <div className="flex items-center gap-3">
-           <div className={`p-2 rounded-lg ${expanded ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+           <div className={`p-2 rounded-lg ${expanded ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
              <Icon className="w-5 h-5" />
            </div>
-           <span className="font-medium text-slate-900">{title}</span>
+           <span className="font-medium text-slate-900 dark:text-slate-100">{title}</span>
         </div>
         {expanded ? <ChevronDown className="w-5 h-5 text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-400" />}
       </button>
@@ -414,18 +418,18 @@ function Section({ title, icon: Icon, expanded, onToggle, children }: any) {
 function NumberInput({ label, value, onChange, prefix }: any) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{label}</label>
       <div className="relative rounded-md shadow-sm">
         {prefix && (
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <span className="text-slate-500 sm:text-sm">{prefix}</span>
+            <span className="text-slate-500 dark:text-slate-400 sm:text-sm">{prefix}</span>
           </div>
         )}
         <input
           type="number"
           value={value || ''}
           onChange={(e) => onChange(e.target.value ? parseInt(e.target.value) : null)}
-          className={`block w-full rounded-md border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border ${prefix ? 'pl-7' : ''}`}
+          className={`block w-full rounded-md border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border ${prefix ? 'pl-7' : ''}`}
         />
       </div>
     </div>
@@ -435,12 +439,12 @@ function NumberInput({ label, value, onChange, prefix }: any) {
 function TextInput({ label, value, onChange, placeholder }: any) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{label}</label>
       <input
         type="text"
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
-        className="block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+        className="block w-full rounded-md border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
         placeholder={placeholder}
       />
     </div>
@@ -450,11 +454,11 @@ function TextInput({ label, value, onChange, placeholder }: any) {
 function SelectInput({ label, value, onChange, options }: any) {
   return (
     <div>
-       <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{label}</label>
        <select
           value={value || ''}
           onChange={(e) => onChange(e.target.value || null)}
-          className="block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border bg-white"
+          className="block w-full rounded-md border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border bg-white"
        >
           <option value="">Select...</option>
           {options.map((opt: string) => (
@@ -473,9 +477,9 @@ function Checkbox({ label, checked, onChange }: any) {
         type="checkbox"
         checked={checked || false}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+        className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
       />
-      <label htmlFor={`checkbox-${label}`} className="ml-2 block text-sm text-slate-900 cursor-pointer select-none">
+      <label htmlFor={`checkbox-${label}`} className="ml-2 block text-sm text-slate-900 dark:text-slate-300 cursor-pointer select-none">
         {label}
       </label>
     </div>

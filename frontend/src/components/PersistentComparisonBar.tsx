@@ -51,19 +51,19 @@ export default function PersistentComparisonBar() {
   if (count === 0) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4 animate-in slide-in-from-bottom duration-300">
+    <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4 animate-in slide-in-from-bottom duration-300">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         
         {/* Status Info */}
         <div className="flex items-center gap-4">
-          <div className="bg-indigo-100 p-2 rounded-lg">
-            <FileBarChart className="w-5 h-5 text-indigo-600" />
+          <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg">
+            <FileBarChart className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <div className="text-sm font-bold text-slate-900">
-              <span className="text-indigo-600">{count}</span> Franchise{count !== 1 ? 's' : ''} Selected
+            <div className="text-sm font-bold text-slate-900 dark:text-white">
+              <span className="text-indigo-600 dark:text-indigo-400">{count}</span> Franchise{count !== 1 ? 's' : ''} Selected
             </div>
-            <p className="text-xs text-slate-500">Ready for side-by-side comparison</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Ready for side-by-side comparison</p>
           </div>
         </div>
 
@@ -71,8 +71,8 @@ export default function PersistentComparisonBar() {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           {/* Lead Attachment */}
           {contextLeadId ? (
-              <div className="px-4 py-2 bg-slate-100 rounded-lg text-sm text-slate-700 font-medium flex items-center gap-2">
-                  <UserPlus className="w-4 h-4 text-indigo-500" />
+              <div className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 font-medium flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                   Attached to Lead #{contextLeadId}
               </div>
           ) : (
@@ -80,7 +80,7 @@ export default function PersistentComparisonBar() {
                 <select
                     value={selectedLeadId}
                     onChange={handleLeadChange}
-                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
+                    className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
                 >
                     <option value="">Attach to Lead (Optional)...</option>
                     {leads.map(lead => (
@@ -89,13 +89,13 @@ export default function PersistentComparisonBar() {
                         </option>
                     ))}
                 </select>
-                <UserPlus className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                <UserPlus className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5 pointer-events-none" />
             </div>
           )}
 
           <button
             onClick={handleCompare}
-            className="flex-shrink-0 inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200"
+            className="flex-shrink-0 inline-flex items-center gap-2 bg-indigo-600 dark:bg-indigo-500 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors shadow-sm shadow-indigo-200 dark:shadow-none"
           >
             <ArrowRightLeft className="w-4 h-4" />
             Compare Now
@@ -103,7 +103,7 @@ export default function PersistentComparisonBar() {
           
           <button 
             onClick={clearComparison}
-            className="flex-shrink-0 text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"
+            className="flex-shrink-0 text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
             title="Clear all"
           >
             <XCircle className="w-5 h-5" />
