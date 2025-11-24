@@ -6,10 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2025-01-27] - Tailwind CSS v4 Dark Mode Configuration
+
+### Fixed
+- **Theme Toggle Dark Mode**:
+  - Fixed theme toggle button not applying visual changes by adding Tailwind CSS v4 dark mode variant configuration (`frontend/src/app/globals.css`).
+  - Added `@variant dark (&:where(.dark, .dark *));` directive to enable class-based dark mode in Tailwind CSS v4.
+  - Theme toggle button now properly switches between light and dark themes visually.
+
+## [2025-11-24] - Dark Mode Theme Toggle Fixes
+
+### Fixed
+- **Theme Toggle Implementation**:
+  - Fixed sidebar hardcoded dark styles in `frontend/src/components/Sidebar.tsx` to support light mode (now uses white background in light mode).
+  - Fixed theme toggle logic to explicitly override system preference when user clicks toggle button (`frontend/src/components/Sidebar.tsx`).
+  - Added `storageKey="theme"` prop to `ThemeProvider` in `frontend/src/app/layout.tsx` to ensure theme preference persists in localStorage.
+  - Improved toggle button handler with better error handling, DOM fallback checks, and debugging logs.
+  - Added `type="button"` and `cursor-pointer` to toggle button to ensure proper click handling.
+  - Toggle now sets theme to 'light' or 'dark' explicitly, preventing system preference from overriding manual selections.
+  - Added missing `next-themes` dependency to `frontend/package.json`.
+  - Updated `Sidebar` navigation links and icons to have proper contrast in both light and dark modes.
+  - Updated `LeadDetailPage` (`frontend/src/app/leads/[id]/page.tsx`) to support dark mode with proper background and text colors.
+  - Ensured `MatchCard` and other components render correctly in both modes.
+
 ## [2025-11-24] - Dark Mode & UI Fixes
 
 ### Added
 - **Dark Mode Support**:
+  - Implemented manual light/dark mode switching via `next-themes`.
+  - Added theme toggle button to the `Sidebar` header, placing it next to the "BrokerAI" title for better accessibility and to avoid conflict with the persistent comparison bar.
+  - Configured `ThemeProvider` with class-based strategy to work seamlessly with Tailwind CSS dark variants.
   - Implemented comprehensive dark mode support across key frontend components using Tailwind CSS `dark:` variants.
   - Added dark mode styles to `DashboardLayout` (`frontend/src/components/DashboardLayout.tsx`).
   - Added dark mode styles to `LeadProfileForm` (`frontend/src/components/LeadProfileForm.tsx`).
@@ -287,7 +314,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `CoachingCard` to gracefully handle empty or undefined arrays (`frontend/src/components/CoachingCard.tsx`).
 
 ## [2025-11-22] - Sticky Comparison Feature
-
 
 ## [2025-11-20] - Scouting & Classification
 

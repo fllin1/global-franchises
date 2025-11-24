@@ -97,8 +97,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       // For now, simpler to just let user toggle individual ones
   };
 
-  if (isLoading) return <div className="p-8">Loading...</div>;
-  if (!lead) return <div className="p-8">Lead not found</div>;
+  if (isLoading) return <div className="p-8 text-slate-600 dark:text-slate-300">Loading...</div>;
+  if (!lead) return <div className="p-8 text-slate-600 dark:text-slate-300">Lead not found</div>;
 
   // Compute missing fields for CoachingCard
   const missingFields: string[] = [];
@@ -112,14 +112,14 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10 transition-colors">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">{lead.candidate_name || 'Unnamed Lead'}</h1>
-              <div className="flex items-center gap-4 mt-2 text-slate-500">
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{lead.candidate_name || 'Unnamed Lead'}</h1>
+              <div className="flex items-center gap-4 mt-2 text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
                   {lead.profile_data.state_code || 'No State'}, {lead.profile_data.location || 'No City'}
@@ -128,7 +128,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                   <Wallet className="w-4 h-4" />
                   ${lead.profile_data.liquidity?.toLocaleString() || '0'} Liquid
                 </span>
-                <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-sm font-medium">
+                <span className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded text-sm font-medium border border-emerald-100 dark:border-emerald-800">
                   {matches.length} Matches Found
                 </span>
               </div>
@@ -149,8 +149,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-                <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
-                <BrainCircuit className="w-5 h-5 text-indigo-600" />
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <BrainCircuit className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 AI Recommendations
                 </h2>
                 
@@ -162,8 +162,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                         className={`
                             flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
                             ${isCheckingComparison 
-                                ? 'bg-slate-100 text-slate-400 cursor-wait' 
-                                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'}
+                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-wait' 
+                                : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800'}
                         `}
                     >
                         {isCheckingComparison ? (
@@ -189,7 +189,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                         type="checkbox"
                         checked={selectedIds.includes(match.id)}
                         onChange={() => toggleComparison(match.id)}
-                        className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                        className="w-4 h-4 text-indigo-600 rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-indigo-500 cursor-pointer"
                     />
                  </div>
                  <div className="flex-1">
