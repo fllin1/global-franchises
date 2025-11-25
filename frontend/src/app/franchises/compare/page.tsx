@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import ComparisonTable from '@/components/ComparisonTable';
 import { ComparisonResponse, Lead } from '@/types';
 import { Loader2 } from 'lucide-react';
-import { getLeadComparisonAnalysis } from '@/app/actions';
+import { getLeadComparisonAnalysis, saveLeadComparisonAnalysis } from '@/app/actions';
 import { getApiUrl } from '@/lib/api';
 
 export default function ComparisonPage() {
@@ -111,6 +111,16 @@ function ComparisonContent() {
 
             if (!res.ok) throw new Error('Failed to generate comparison');
             comparisonData = await res.json();
+
+            // Auto-save if lead is associated
+            if (leadIdParam) {
+              try {
+                await saveLeadComparisonAnalysis(parseInt(leadIdParam), comparisonData);
+                console.log('Comparison analysis auto-saved for lead', leadIdParam);
+              } catch (saveErr) {
+                console.error('Failed to auto-save comparison analysis:', saveErr);
+              }
+            }
         }
 
         setData(comparisonData);

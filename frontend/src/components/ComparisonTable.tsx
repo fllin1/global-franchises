@@ -90,7 +90,7 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
     try {
       // Dynamic imports for jsPDF
       const { jsPDF } = await import('jspdf');
-      await import('jspdf-autotable');
+      const autoTable = (await import('jspdf-autotable')).default;
       
       const leadName = selectedLead?.candidate_name || 'Comparison';
       const filename = `${leadName.replace(/[^a-zA-Z0-9]/g, '_')}_Franchise_Matrix_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -200,7 +200,7 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
         item.money.traffic_light === 'green' ? '✓ Good Fit' : item.money.traffic_light === 'yellow' ? '⚠ Caution' : '✗ Mismatch'
       ]);
       
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [['#', 'Franchise', 'Industry', 'Investment', 'Fit']],
         body: summaryData,
@@ -280,7 +280,7 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
         doc.text('Overview', margin, y);
         y += 15;
         
-        (doc as any).autoTable({
+        autoTable(doc, {
           startY: y,
           body: [
             ['Year Started', item.overview?.year_started?.toString() || 'N/A'],
@@ -317,7 +317,7 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
         
         y += 15;
         
-        (doc as any).autoTable({
+        autoTable(doc, {
           startY: y,
           body: [
             ['Total Investment', item.money.investment_range],
@@ -349,7 +349,7 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
         doc.text('Growth & Stability (The "Motives")', margin, y);
         y += 15;
         
-        (doc as any).autoTable({
+        autoTable(doc, {
           startY: y,
           body: [
             ['Recession Resistance', item.motives.recession_resistance],
@@ -388,7 +388,7 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
         
         y += 15;
         
-        (doc as any).autoTable({
+        autoTable(doc, {
           startY: y,
           body: [
             ['Role Type', item.interest.role],
@@ -419,7 +419,7 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
           ? item.territories.unavailable_states.join(', ') 
           : 'All states available';
         
-        (doc as any).autoTable({
+        autoTable(doc, {
           startY: y,
           body: [
             ['Availability Status', item.territories.availability_status],

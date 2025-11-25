@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-25] - PDF Export Fix & Comparison Auto-Save
+
+### Fixed
+- **PDF Export Error (`doc.autoTable is not a function`)**:
+  - Fixed `jspdf-autotable` dynamic import in `frontend/src/components/ComparisonTable.tsx`.
+  - Changed from side-effect import (`await import('jspdf-autotable')`) to function-style API.
+  - Now imports `autoTable` as default export and uses `autoTable(doc, options)` instead of `doc.autoTable(options)`.
+  - Updated all 6 autoTable calls to use the new function-style API.
+
+### Added
+- **Auto-Save Comparison Analysis**:
+  - Comparison analysis is now automatically saved to the database after generation (`frontend/src/app/franchises/compare/page.tsx`).
+  - When a `leadId` is present and a new comparison is generated, it is immediately persisted to the `comparison_analysis` column.
+  - This prevents regenerating the same comparison sheet on subsequent visits.
+  - Added import for `saveLeadComparisonAnalysis` action.
+  - Existing logic already loads saved analysis first before regenerating.
+
 ## [2025-11-25] - PDF Export Rewrite with jsPDF
 
 ### Added
