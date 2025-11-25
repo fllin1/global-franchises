@@ -68,6 +68,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added fallback prompt to use browser's native print dialog when html2pdf export fails.
   - Clone element now wrapped with light mode style overrides to reduce color parsing issues.
 
+- **Backend Comparison API Validation Error**:
+  - Fixed Pydantic validation error in `src/backend/comparison.py` where `unavailable_states` was passed as a string instead of a list.
+  - Error: `Input should be a valid list [type=list_type, input_value="['Florida', 'Alabama']", input_type=str]`
+  - Added type checking and `ast.literal_eval()` parsing to handle string representations of lists from database.
+
 ### Changed
 - **Comparison Endpoint**:
   - Updated `/api/franchises/compare` endpoint (`src/backend/comparison.py`) to populate all new fields.

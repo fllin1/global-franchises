@@ -1,5 +1,6 @@
 from typing import List, Optional
 import json
+import ast
 from fastapi import APIRouter, HTTPException, Body
 from loguru import logger
 
@@ -128,7 +129,15 @@ async def compare_franchises(
             })
             
             # --- Territory Attributes ---
-            unavailable = f.get('unavailable_states') or []
+            unavailable_raw = f.get('unavailable_states') or []
+            # Handle case where unavailable_states might be a string representation of a list
+            if isinstance(unavailable_raw, str):
+                try:
+                    unavailable = ast.literal_eval(unavailable_raw)
+                except (ValueError, SyntaxError):
+                    unavailable = []
+            else:
+                unavailable = unavailable_raw if isinstance(unavailable_raw, list) else []
             avail_status = "Check Required"
             
             if lead_profile and lead_profile.state_code:
