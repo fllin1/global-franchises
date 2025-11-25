@@ -3,6 +3,7 @@ import { ComparisonItem, ComparisonResponse, Lead } from '../types';
 import { Save, ArrowLeft, UserPlus, Check, AlertTriangle, X, MapPin, Wallet, Tag, FileDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { saveLeadComparisonAnalysis } from '@/app/actions';
+import { ContentList } from './ContentList';
 
 interface ComparisonTableProps {
   data: ComparisonResponse;
@@ -55,16 +56,17 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
       const filename = `${leadName.replace(/[^a-zA-Z0-9]/g, '_')}_Franchise_Matrix_${new Date().toISOString().split('T')[0]}.pdf`;
       
       const opt = {
-        margin: [0.5, 0.5, 0.5, 0.5],
+        margin: [0.3, 0.3, 0.3, 0.3],
         filename,
-        image: { type: 'jpeg', quality: 0.95 },
+        image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
-          scale: 1.5, 
+          scale: 2, 
           useCORS: true,
           logging: false,
           allowTaint: true,
           scrollX: 0,
-          scrollY: -window.scrollY
+          scrollY: 0,
+          backgroundColor: '#ffffff'
         },
         jsPDF: { 
           unit: 'in', 
@@ -75,29 +77,84 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
       };
       
       // Clone element for PDF export
-      // html2canvas doesn't support modern CSS color functions like lab(), oklch()
       const clonedElement = element.cloneNode(true) as HTMLElement;
       
-      // Create a wrapper with forced color scheme to avoid lab()/oklch() colors
+      // Create a wrapper with forced light mode and explicit colors
       const wrapper = document.createElement('div');
       wrapper.style.cssText = `
         position: absolute;
         left: -9999px;
+        top: 0;
         width: ${element.offsetWidth}px;
-        background: white;
+        background: #ffffff;
         color-scheme: light;
       `;
       
-      // Force light mode colors on the clone by adding a style override
+      // Force light mode colors - comprehensive CSS reset for html2canvas compatibility
+      // html2canvas doesn't support modern CSS color functions like lab(), oklch()
       const styleOverride = document.createElement('style');
       styleOverride.textContent = `
         * {
           color-scheme: light !important;
-        }
-        .dark, [data-theme="dark"] {
           --background: #ffffff !important;
           --foreground: #1f2937 !important;
+          --color-background: #ffffff !important;
+          --color-foreground: #1f2937 !important;
         }
+        
+        /* Force explicit colors on all elements to avoid lab()/oklch() */
+        .bg-white, [class*="bg-white"] { background-color: #ffffff !important; }
+        .bg-slate-50, [class*="bg-slate-50"] { background-color: #f8fafc !important; }
+        .bg-slate-100, [class*="bg-slate-100"] { background-color: #f1f5f9 !important; }
+        .bg-slate-800, [class*="bg-slate-800"] { background-color: #1e293b !important; }
+        .bg-slate-900, [class*="bg-slate-900"] { background-color: #0f172a !important; }
+        .bg-indigo-50, [class*="bg-indigo-50"] { background-color: #eef2ff !important; }
+        .bg-indigo-100, [class*="bg-indigo-100"] { background-color: #e0e7ff !important; }
+        .bg-green-100, [class*="bg-green-100"] { background-color: #dcfce7 !important; }
+        .bg-green-500, [class*="bg-green-500"] { background-color: #22c55e !important; }
+        .bg-yellow-100, [class*="bg-yellow-100"] { background-color: #fef9c3 !important; }
+        .bg-yellow-500, [class*="bg-yellow-500"] { background-color: #eab308 !important; }
+        .bg-red-50, [class*="bg-red-50"] { background-color: #fef2f2 !important; }
+        .bg-red-100, [class*="bg-red-100"] { background-color: #fee2e2 !important; }
+        .bg-red-500, [class*="bg-red-500"] { background-color: #ef4444 !important; }
+        .bg-indigo-400, [class*="bg-indigo-400"] { background-color: #818cf8 !important; }
+        
+        .text-slate-300, [class*="text-slate-300"] { color: #cbd5e1 !important; }
+        .text-slate-400, [class*="text-slate-400"] { color: #94a3b8 !important; }
+        .text-slate-500, [class*="text-slate-500"] { color: #64748b !important; }
+        .text-slate-600, [class*="text-slate-600"] { color: #475569 !important; }
+        .text-slate-700, [class*="text-slate-700"] { color: #334155 !important; }
+        .text-slate-800, [class*="text-slate-800"] { color: #1e293b !important; }
+        .text-slate-900, [class*="text-slate-900"] { color: #0f172a !important; }
+        .text-white, [class*="text-white"] { color: #ffffff !important; }
+        .text-indigo-700, [class*="text-indigo-700"] { color: #4338ca !important; }
+        .text-indigo-300, [class*="text-indigo-300"] { color: #a5b4fc !important; }
+        .text-green-600, [class*="text-green-600"] { color: #16a34a !important; }
+        .text-green-800, [class*="text-green-800"] { color: #166534 !important; }
+        .text-green-300, [class*="text-green-300"] { color: #86efac !important; }
+        .text-yellow-800, [class*="text-yellow-800"] { color: #854d0e !important; }
+        .text-red-700, [class*="text-red-700"] { color: #b91c1c !important; }
+        .text-red-800, [class*="text-red-800"] { color: #991b1b !important; }
+        
+        .border-slate-100, [class*="border-slate-100"] { border-color: #f1f5f9 !important; }
+        .border-slate-200, [class*="border-slate-200"] { border-color: #e2e8f0 !important; }
+        .border-slate-700, [class*="border-slate-700"] { border-color: #334155 !important; }
+        .border-slate-800, [class*="border-slate-800"] { border-color: #1e293b !important; }
+        .border-indigo-100, [class*="border-indigo-100"] { border-color: #e0e7ff !important; }
+        .border-indigo-800, [class*="border-indigo-800"] { border-color: #3730a3 !important; }
+        .border-green-200, [class*="border-green-200"] { border-color: #bbf7d0 !important; }
+        .border-yellow-200, [class*="border-yellow-200"] { border-color: #fef08a !important; }
+        .border-red-100, [class*="border-red-100"] { border-color: #fee2e2 !important; }
+        .border-red-200, [class*="border-red-200"] { border-color: #fecaca !important; }
+        .border-red-800, [class*="border-red-800"] { border-color: #991b1b !important; }
+        
+        /* Remove dark mode variants entirely */
+        .dark\\:bg-slate-800, .dark\\:bg-slate-900, .dark\\:bg-slate-950,
+        [class*="dark:bg-"] { background-color: inherit !important; }
+        .dark\\:text-white, .dark\\:text-slate-300, .dark\\:text-slate-400,
+        [class*="dark:text-"] { color: inherit !important; }
+        .dark\\:border-slate-700, .dark\\:border-slate-800,
+        [class*="dark:border-"] { border-color: inherit !important; }
       `;
       wrapper.appendChild(styleOverride);
       wrapper.appendChild(clonedElement);
@@ -105,6 +162,37 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
       // Remove dark mode classes from clone
       clonedElement.classList.remove('dark');
       clonedElement.querySelectorAll('.dark').forEach(el => el.classList.remove('dark'));
+      
+      // Also remove any data-theme="dark" attributes
+      clonedElement.removeAttribute('data-theme');
+      clonedElement.querySelectorAll('[data-theme]').forEach(el => el.removeAttribute('data-theme'));
+      
+      // Apply inline styles to ensure colors work with html2canvas
+      const applyInlineColors = (el: HTMLElement) => {
+        const computed = window.getComputedStyle(el);
+        const bgColor = computed.backgroundColor;
+        const textColor = computed.color;
+        const borderColor = computed.borderColor;
+        
+        // Only override if it looks like a modern CSS function
+        if (bgColor && (bgColor.includes('lab') || bgColor.includes('oklch') || bgColor.includes('color('))) {
+          el.style.backgroundColor = '#ffffff';
+        }
+        if (textColor && (textColor.includes('lab') || textColor.includes('oklch') || textColor.includes('color('))) {
+          el.style.color = '#1f2937';
+        }
+        if (borderColor && (borderColor.includes('lab') || borderColor.includes('oklch') || borderColor.includes('color('))) {
+          el.style.borderColor = '#e2e8f0';
+        }
+      };
+      
+      // Apply to all elements
+      applyInlineColors(clonedElement);
+      clonedElement.querySelectorAll('*').forEach(el => {
+        if (el instanceof HTMLElement) {
+          applyInlineColors(el);
+        }
+      });
       
       document.body.appendChild(wrapper);
       
@@ -736,11 +824,12 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
                     <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Why This Franchise</td>
                     {items.map((item) => (
                       <td key={item.franchise_id} className="p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                        {item.value?.why_franchise ? (
-                          <p className="text-[10px] leading-relaxed whitespace-pre-line">{item.value.why_franchise}</p>
-                        ) : (
-                          <span className="text-slate-400 dark:text-slate-500 italic">N/A</span>
-                        )}
+                        <ContentList 
+                          content={item.value?.why_franchise} 
+                          compact={true}
+                          bulletClassName="bg-indigo-400"
+                          textClassName="text-slate-700 dark:text-slate-300"
+                        />
                       </td>
                     ))}
                   </tr>

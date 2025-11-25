@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-25] - Comparison Table Display & PDF Export Fix
+
+### Added
+- **ContentList Shared Component**:
+  - Created `frontend/src/components/ContentList.tsx` as a reusable component.
+  - Handles parsing of various content formats: JSON arrays, Python-style arrays, and plain text.
+  - Supports customizable bullet colors (`bulletClassName`), text colors (`textClassName`), and compact mode.
+  - Normalizes inconsistent data formats into consistent bullet-point lists.
+
+### Fixed
+- **"Why This Franchise" Display Inconsistency**:
+  - Fixed issue where "Why This Franchise" content displayed inconsistently in the Comparison Matrix.
+  - Some franchises showed raw array format like `['item1', 'item2']` instead of bullet points.
+  - Updated `ComparisonTable.tsx` to use the new `ContentList` component for proper rendering.
+  - All franchise entries now display with consistent bullet-point formatting.
+
+- **PDF Export CSS Compatibility**:
+  - Enhanced PDF export function in `ComparisonTable.tsx` to handle modern CSS color functions.
+  - Added comprehensive inline style overrides for Tailwind color classes (`bg-*`, `text-*`, `border-*`).
+  - Implemented recursive color override function that detects and replaces `lab()`, `oklch()`, and `color()` functions.
+  - Removed dark mode classes and attributes from cloned elements before rendering.
+  - PDF export now works reliably without triggering CSS parsing errors in html2canvas.
+
+### Changed
+- **Franchise Detail Page Refactor**:
+  - Updated `frontend/src/app/franchises/[id]/page.tsx` to import shared `ContentList` component.
+  - Removed duplicate local `ContentList` function definition.
+  - Both Comparison Matrix and Franchise Detail pages now share the same parsing logic.
+
 ## [2025-11-25] - Comparison Matrix Enhancement & PDF Export
 
 ### Added
