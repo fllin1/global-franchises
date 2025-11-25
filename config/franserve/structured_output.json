@@ -12,12 +12,12 @@
         "primary_category": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "The primary(ies) category(ies) of the franchise."
+          "description": "The primary(ies) category(ies) of the franchise. Extract from '**Category:**' field (e.g., ['Senior Services'])."
         },
         "sub_categories": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "The sub-category(ies) of the franchise."
+          "description": "The sub-category(ies) of the franchise. Extract from '**Subcategory:**' field, can be multiple comma-separated values (e.g., ['Non-Medical Senior Care', 'Senior Care Placement'])."
         },
         "business_model_type": {
           "type": "string",
@@ -25,23 +25,23 @@
         },
         "corporate_address": {
           "type": "string",
-          "description": "The full corporate office address."
+          "description": "The full corporate office address. Extract from '**Corporate Office:**' field. Include street, city, state, and zip code (e.g., '11422 Miracle Hills Dr, Ste 450 Omaha, NE 68154')."
         },
         "website_url": {
           "type": "string",
-          "description": "The main website of the franchise."
+          "description": "The main website of the franchise. Extract from '**Website:**' field. Include full URL with http:// or https:// (e.g., 'http://aplaceathome.com/franchise/')."
         },
         "founded_year": {
           "type": "integer",
-          "description": "The year the company was founded."
+          "description": "The year the company was founded. Extract from BACKGROUND section 'Year founded:' field (e.g., 2012)."
         },
         "franchised_year": {
           "type": "integer",
-          "description": "The year the company started franchising."
+          "description": "The year the company started franchising. Extract from BACKGROUND section 'Year Franchised:' field (e.g., 2017)."
         },
         "franchise_fee_usd": {
           "type": "integer",
-          "description": "The franchise fee in USD. Extract the primary or lowest fee if a range is given."
+          "description": "The franchise fee in USD. Extract the primary or lowest fee if multiple packages exist."
         },
         "required_cash_investment_usd": {
           "type": "integer",
@@ -61,11 +61,27 @@
         },
         "royalty_details_text": {
           "type": "string",
-          "description": "A description of the royalty fees (e.g., '8%' or '6.5% - 3%')."
+          "description": "A description of the royalty fees. Can be percentage (e.g., '8%' or '5.5 - 4.5%') or fixed amount (e.g., '$3000 per zone per month')."
         },
         "sba_approved": {
           "type": "boolean",
           "description": "Is the franchise approved by the SBA?"
+        },
+        "sba_registered": {
+          "type": "boolean",
+          "description": "Is the franchise registered with the SBA? (Separate from sba_approved)"
+        },
+        "providing_earnings_guidance_item19": {
+          "type": "boolean",
+          "description": "Is the franchise providing earnings guidance in Item 19 in FDD?"
+        },
+        "additional_fees": {
+          "type": "string",
+          "description": "Additional fees beyond franchise fee and royalties (e.g., '1% brand fund' or 'Design $1,500, Marketing $250, Technology $250')."
+        },
+        "financial_assistance_details": {
+          "type": "string",
+          "description": "Details about financial assistance available (e.g., 'Yes, SBA' or 'No')."
         },
         "vetfran_member": {
           "type": "boolean",
@@ -107,21 +123,304 @@
         "ideal_candidate_profile_text": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "A list of bullet points describing the ideal franchisee."
+          "description": "A list of bullet points describing the ideal franchisee (legacy field for backward compatibility)."
+        },
+        "ideal_candidate_profile": {
+          "type": "object",
+          "description": "Structured ideal candidate profile information.",
+          "properties": {
+            "skills": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Array of required skills for the ideal franchisee."
+            },
+            "personality_traits": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Array of personality traits desired in the ideal franchisee."
+            },
+            "role_of_owner": {
+              "type": "string",
+              "description": "Detailed description of the role of the owner/franchisee."
+            }
+          }
         },
         "unavailable_states": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "A list of US states where the franchise is NOT available."
+          "description": "A list of US states (2-letter codes) where the franchise is NOT available."
+        },
+        "hot_regions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "A list of hot/desirable markets. Can be state codes (e.g., 'FL, GA, NC') or regions (e.g., 'Southeastern US')."
+        },
+        "canadian_referrals": {
+          "type": "boolean",
+          "description": "Does the franchise accept Canadian referrals?"
+        },
+        "international_referrals": {
+          "type": "boolean",
+          "description": "Does the franchise accept international referrals?"
         },
         "recent_territory_checks": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "A list of recent territory availability checks."
+          "description": "A list of recent territory availability checks with structured data.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "description": "Date of the territory check in MM/DD/YYYY format."
+              },
+              "location": {
+                "type": "string",
+                "description": "Location description (can be city, state, zip code, or combinations)."
+              },
+              "is_available": {
+                "type": "boolean",
+                "description": "Whether the territory is available (true) or not available (false)."
+              },
+              "notes": {
+                "type": "string",
+                "description": "Additional notes, questions, or special conditions from the territory check."
+              }
+            },
+            "required": ["date", "location", "is_available"]
+          }
         },
         "last_updated_from_source": {
           "type": "string",
           "description": "The date the listing was last updated on the source, in MM/DD/YYYY format."
+        },
+        "commission_structure": {
+          "type": "object",
+          "description": "Commission structure for brokers.",
+          "properties": {
+            "single_unit": {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "type": "integer",
+                  "description": "Commission amount in USD (if fixed amount)."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Full description of single unit commission."
+                }
+              }
+            },
+            "multi_unit": {
+              "type": "object",
+              "properties": {
+                "percentage": {
+                  "type": "number",
+                  "description": "Commission percentage (if percentage-based)."
+                },
+                "max_per_unit": {
+                  "type": "integer",
+                  "description": "Maximum commission per unit in USD."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Full description of multi-unit commission."
+                }
+              }
+            },
+            "resales": {
+              "type": "object",
+              "properties": {
+                "percentage": {
+                  "type": "number",
+                  "description": "Commission percentage (if percentage-based)."
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum commission amount in USD."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Full description of resales commission."
+                }
+              }
+            },
+            "area_master_developer": {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "type": "integer",
+                  "description": "Commission amount in USD (if fixed amount, null if N/A)."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Full description of area/master developer commission (can be 'N/A')."
+                }
+              }
+            }
+          }
+        },
+        "industry_awards": {
+          "type": "array",
+          "description": "Industry rankings and awards received by the franchise.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "Source of the award (e.g., 'FranServe's FRAN-TASTIC BRAND', 'Franchise Dictionary Magazine')."
+              },
+              "year": {
+                "type": "integer",
+                "description": "Year the award was received."
+              },
+              "award_name": {
+                "type": "string",
+                "description": "Name of the award (e.g., 'Fran-Tastic Brand Award', 'TOP 100 Game Changers')."
+              }
+            },
+            "required": ["source", "year"]
+          }
+        },
+        "documents": {
+          "type": "object",
+          "description": "Documents and resources available for the franchise.",
+          "properties": {
+            "regular": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Array of URLs for regular documents (PDFs, videos, links)."
+            },
+            "client_focused": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Array of URLs for client-focused documents (PDFs, videos, links)."
+            },
+            "recent_emails": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Array of URLs for recent email campaigns."
+            },
+            "magazine_articles": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Array of URLs for Franchise Dictionary Magazine articles."
+            }
+          }
+        },
+        "resales_available": {
+          "type": "boolean",
+          "description": "Are resales available for this franchise?"
+        },
+        "resales_list": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of available resales (usually empty if resales_available is false)."
+        },
+        "rating": {
+          "type": "number",
+          "description": "Star rating (1-5) if available."
+        },
+        "schedule_call_url": {
+          "type": "string",
+          "description": "Calendar booking URL for scheduling a call with the franchise."
+        },
+        "franchise_packages": {
+          "type": "array",
+          "description": "Franchise packages offered (if multiple packages exist).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the package (e.g., 'Development Package', 'Professional Package')."
+              },
+              "franchise_fee": {
+                "type": "integer",
+                "description": "Franchise fee for this package in USD."
+              },
+              "total_investment_min": {
+                "type": "integer",
+                "description": "Minimum total investment for this package in USD."
+              },
+              "total_investment_max": {
+                "type": "integer",
+                "description": "Maximum total investment for this package in USD."
+              },
+              "territories_count": {
+                "type": "integer",
+                "description": "Number of territories included in this package."
+              },
+              "description": {
+                "type": "string",
+                "description": "Full description of the package."
+              }
+            },
+            "required": ["name", "franchise_fee"]
+          }
+        },
+        "support_training_details": {
+          "type": "object",
+          "description": "Support and training program details.",
+          "properties": {
+            "program_description": {
+              "type": "string",
+              "description": "Full text description of the training and support program."
+            },
+            "cost_included": {
+              "type": "boolean",
+              "description": "Is training cost included in the franchise fee?"
+            },
+            "cost_details": {
+              "type": "string",
+              "description": "Details about training costs if not included (e.g., '$400/day on location plus travel')."
+            },
+            "lodging_airfare_included": {
+              "type": "boolean",
+              "description": "Are lodging and airfare included in training?"
+            },
+            "site_selection_assistance": {
+              "type": "boolean",
+              "description": "Is site selection assistance provided?"
+            },
+            "lease_negotiation_assistance": {
+              "type": "boolean",
+              "description": "Is lease negotiation assistance provided?"
+            },
+            "mentor_available": {
+              "type": "boolean",
+              "description": "Is a mentor provided following training?"
+            },
+            "mentoring_length": {
+              "type": "string",
+              "description": "Length of mentoring period (e.g., 'Term of FA', 'Ongoing')."
+            }
+          }
+        },
+        "market_growth_statistics": {
+          "type": "object",
+          "description": "Market growth statistics extracted from WHY section.",
+          "properties": {
+            "demographics": {
+              "type": "string",
+              "description": "Demographic statistics and projections (e.g., 'The number of Americans aged 65 and older is projected to rise from 58 million in 2022 to 82 million by 2050')."
+            },
+            "market_size": {
+              "type": "string",
+              "description": "Market size data (e.g., '$1,012 billion')."
+            },
+            "cagr": {
+              "type": "string",
+              "description": "Compound Annual Growth Rate (e.g., '6.3%')."
+            },
+            "growth_period": {
+              "type": "string",
+              "description": "Growth period for CAGR (e.g., '2023 to 2030')."
+            },
+            "recession_resistance": {
+              "type": "string",
+              "description": "Recession resistance claims or statements."
+            }
+          }
         },
         "franchises_data": {
           "type": "object",
@@ -130,6 +429,14 @@
             "franchised_units_operating": {
               "type": "string",
               "description": "The current number of franchisee-owned units. Stored as a string to handle values like '45+' or '330 franchise territories'."
+            },
+            "launching_units": {
+              "type": "string",
+              "description": "The number of units currently launching (e.g., '15 launching units')."
+            },
+            "total_franchisees": {
+              "type": "string",
+              "description": "The total number of franchisees (e.g., '42 total franchisees')."
             },
             "corporate_units_operating": {
               "type": "string",
@@ -166,6 +473,10 @@
             "type": "string",
             "description": "The contact person's full name."
           },
+          "title": {
+            "type": "string",
+            "description": "The contact person's job title (if available)."
+          },
           "phone": {
             "type": "string",
             "description": "The contact's phone number."
@@ -178,7 +489,8 @@
             "type": "boolean",
             "description": "True if this is the main contact, false for alternative contacts."
           }
-        }
+        },
+        "required": ["name", "is_primary"]
       }
     }
   }

@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { ComparisonItem, ComparisonResponse, Lead } from '../types';
-import { Save, ArrowLeft, UserPlus, Check, AlertTriangle, X, MapPin, Wallet, Tag } from 'lucide-react';
+import { Save, ArrowLeft, UserPlus, Check, AlertTriangle, X, MapPin, Wallet, Tag, FileDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { saveLeadComparisonAnalysis } from '@/app/actions';
 
@@ -19,12 +19,111 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showMisfits, setShowMisfits] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  
+  const tableRef = useRef<HTMLDivElement>(null);
 
   // Get full selected lead object
   const selectedLead = useMemo(() => 
     leads.find(l => l.id === selectedLeadId), 
     [selectedLeadId, leads]
   );
+
+  // PDF Export function
+  const handleExportPDF = async () => {
+    if (!tableRef.current || isExporting) return;
+    
+    // Ensure we're in the browser
+    if (typeof window === 'undefined') {
+      console.error('PDF export is only available in browser');
+      return;
+    }
+    
+    setIsExporting(true);
+    
+    try {
+      // Dynamic import to avoid SSR issues
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default;
+      
+      if (!html2pdf) {
+        throw new Error('html2pdf module not loaded correctly');
+      }
+      
+      const element = tableRef.current;
+      const leadName = selectedLead?.candidate_name || 'Comparison';
+      const filename = `${leadName.replace(/[^a-zA-Z0-9]/g, '_')}_Franchise_Matrix_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      const opt = {
+        margin: [0.5, 0.5, 0.5, 0.5],
+        filename,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { 
+          scale: 1.5, 
+          useCORS: true,
+          logging: false,
+          allowTaint: true,
+          scrollX: 0,
+          scrollY: -window.scrollY
+        },
+        jsPDF: { 
+          unit: 'in', 
+          format: 'letter', 
+          orientation: 'landscape' 
+        },
+        pagebreak: { mode: ['css', 'legacy'] }
+      };
+      
+      // Clone element for PDF export
+      // html2canvas doesn't support modern CSS color functions like lab(), oklch()
+      const clonedElement = element.cloneNode(true) as HTMLElement;
+      
+      // Create a wrapper with forced color scheme to avoid lab()/oklch() colors
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = `
+        position: absolute;
+        left: -9999px;
+        width: ${element.offsetWidth}px;
+        background: white;
+        color-scheme: light;
+      `;
+      
+      // Force light mode colors on the clone by adding a style override
+      const styleOverride = document.createElement('style');
+      styleOverride.textContent = `
+        * {
+          color-scheme: light !important;
+        }
+        .dark, [data-theme="dark"] {
+          --background: #ffffff !important;
+          --foreground: #1f2937 !important;
+        }
+      `;
+      wrapper.appendChild(styleOverride);
+      wrapper.appendChild(clonedElement);
+      
+      // Remove dark mode classes from clone
+      clonedElement.classList.remove('dark');
+      clonedElement.querySelectorAll('.dark').forEach(el => el.classList.remove('dark'));
+      
+      document.body.appendChild(wrapper);
+      
+      try {
+        await html2pdf().set(opt).from(clonedElement).save();
+      } finally {
+        document.body.removeChild(wrapper);
+      }
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      // Fallback to browser print dialog
+      const userChoice = confirm('PDF export failed due to CSS compatibility. Would you like to use the browser\'s print dialog instead?\n\nTip: Select "Save as PDF" in the print dialog.');
+      if (userChoice) {
+        window.print();
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Helper to render traffic light
   const TrafficLight = ({ color }: { color: 'green' | 'yellow' | 'red' }) => {
@@ -181,6 +280,24 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
                     </>
                 )}
             </button>
+
+            <button
+                onClick={handleExportPDF}
+                disabled={isExporting}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all shadow-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                {isExporting ? (
+                    <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Exporting...
+                    </>
+                ) : (
+                    <>
+                        <FileDown className="w-3.5 h-3.5" />
+                        Export PDF
+                    </>
+                )}
+            </button>
           </div>
         </div>
       </div>
@@ -333,7 +450,7 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
 
         {/* Main Table */}
         <div className="flex-1 overflow-auto p-2 md:p-4">
-          <div className="max-w-[1600px] mx-auto bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div ref={tableRef} className="max-w-[1600px] mx-auto bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
@@ -359,11 +476,58 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   
+                  {/* Section: Overview */}
+                  <tr className="bg-slate-50/50 dark:bg-slate-800/30">
+                    <td className="p-2 px-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800 border-y border-r border-slate-200 dark:border-slate-700 sticky left-0 z-10">
+                      Overview
+                    </td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 bg-slate-50 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700"></td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Industry</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
+                          {item.overview?.industry || 'N/A'}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Year Started</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                        {item.overview?.year_started || 'N/A'}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Year Franchised</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                        {item.overview?.year_franchised || 'N/A'}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Operating Franchises</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                        {item.overview?.operating_franchises || 'N/A'}
+                      </td>
+                    ))}
+                  </tr>
+                  
                   {/* Section: Money */}
                   <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                    <td colSpan={items.length + 1} className="p-2 px-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700">
+                    <td className="p-2 px-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800 border-y border-r border-slate-200 dark:border-slate-700 sticky left-0 z-10">
                       The "Wallet" (Financials)
                     </td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 bg-slate-50 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700"></td>
+                    ))}
                   </tr>
                   <tr>
                     <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-900 dark:text-white bg-white dark:bg-slate-900 sticky left-0 z-10">Fit Assessment</td>
@@ -380,6 +544,52 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
                     ))}
                   </tr>
                   <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Required Liquidity</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className={`p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300 ${getHighlightClass(isMisfit(item, 'money'))}`}>
+                        {item.money.liquidity_req ? `$${item.money.liquidity_req.toLocaleString()}` : 'N/A'}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Net Worth Requirement</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className={`p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300 ${getHighlightClass(isMisfit(item, 'money'))}`}>
+                        {item.money.net_worth_req ? `$${item.money.net_worth_req.toLocaleString()}` : 'N/A'}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Royalty</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className={`p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300 ${getHighlightClass(isMisfit(item, 'money'))}`}>
+                        {item.money?.royalty || 'N/A'}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">SBA Registered</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className={`p-2 px-3 border-r border-slate-50 dark:border-slate-800 ${getHighlightClass(isMisfit(item, 'money'))}`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                          item.money?.sba_registered 
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' 
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        }`}>
+                          {item.money?.sba_registered ? 'Yes' : 'No'}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">In-House Financing</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className={`p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300 ${getHighlightClass(isMisfit(item, 'money'))}`}>
+                        {item.money?.in_house_financing || 'N/A'}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
                     <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Financial Model</td>
                     {items.map((item) => (
                       <td key={item.franchise_id} className={`p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300 ${getHighlightClass(isMisfit(item, 'money'))}`}>{item.money.financial_model}</td>
@@ -391,20 +601,15 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
                       <td key={item.franchise_id} className={`p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300 ${getHighlightClass(isMisfit(item, 'money'))}`}>{item.money.overhead_level}</td>
                     ))}
                   </tr>
-                  <tr>
-                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Required Liquidity</td>
-                    {items.map((item) => (
-                      <td key={item.franchise_id} className={`p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300 ${getHighlightClass(isMisfit(item, 'money'))}`}>
-                        {item.money.liquidity_req ? `$${item.money.liquidity_req.toLocaleString()}` : 'N/A'}
-                      </td>
-                    ))}
-                  </tr>
 
                   {/* Section: Motives */}
                   <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                    <td colSpan={items.length + 1} className="p-2 px-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700">
+                    <td className="p-2 px-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800 border-y border-r border-slate-200 dark:border-slate-700 sticky left-0 z-10">
                       The "Motives" (Growth & Stability)
                     </td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 bg-slate-50 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700"></td>
+                    ))}
                   </tr>
                   <tr>
                     <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Recession Resistance</td>
@@ -433,9 +638,12 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
 
                   {/* Section: Interest */}
                   <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                    <td colSpan={items.length + 1} className="p-2 px-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700">
+                    <td className="p-2 px-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800 border-y border-r border-slate-200 dark:border-slate-700 sticky left-0 z-10">
                       The "Life" (Operations)
                     </td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 bg-slate-50 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700"></td>
+                    ))}
                   </tr>
                   <tr>
                     <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-900 dark:text-white bg-white dark:bg-slate-900 sticky left-0 z-10">Role Fit</td>
@@ -472,9 +680,12 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
 
                   {/* Section: Territories */}
                   <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                    <td colSpan={items.length + 1} className="p-2 px-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700">
+                    <td className="p-2 px-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800 border-y border-r border-slate-200 dark:border-slate-700 sticky left-0 z-10">
                       The "Empire" (Territory)
                     </td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 bg-slate-50 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700"></td>
+                    ))}
                   </tr>
                   <tr>
                     <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Availability</td>
@@ -487,8 +698,60 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
                         }`}>
                           {item.territories.availability_status}
                         </span>
-                        {item.territories.territory_notes && (
-                          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">{item.territories.territory_notes}</p>
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Unavailable States</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className={`p-2 px-3 border-r border-slate-50 dark:border-slate-800 ${getHighlightClass(isMisfit(item, 'territory'))}`}>
+                        {item.territories?.unavailable_states && item.territories.unavailable_states.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {item.territories.unavailable_states.slice(0, 8).map((state, idx) => (
+                              <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-800">
+                                {state}
+                              </span>
+                            ))}
+                            {item.territories.unavailable_states.length > 8 && (
+                              <span className="text-[9px] text-slate-500 dark:text-slate-400">+{item.territories.unavailable_states.length - 8} more</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-green-600 dark:text-green-400">All states available</span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+
+                  {/* Section: Value Proposition */}
+                  <tr className="bg-slate-50/50 dark:bg-slate-800/30">
+                    <td className="p-2 px-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800 border-y border-r border-slate-200 dark:border-slate-700 sticky left-0 z-10">
+                      Value Proposition
+                    </td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 bg-slate-50 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700"></td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Why This Franchise</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                        {item.value?.why_franchise ? (
+                          <p className="text-[10px] leading-relaxed whitespace-pre-line">{item.value.why_franchise}</p>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500 italic">N/A</span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="p-2 px-3 border-r border-slate-100 dark:border-slate-800 font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 sticky left-0 z-10">Description</td>
+                    {items.map((item) => (
+                      <td key={item.franchise_id} className="p-2 px-3 border-r border-slate-50 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                        {item.value?.value_proposition ? (
+                          <p className="text-[10px] leading-relaxed">{item.value.value_proposition}</p>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500 italic">N/A</span>
                         )}
                       </td>
                     ))}

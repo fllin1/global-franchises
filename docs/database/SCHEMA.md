@@ -38,8 +38,14 @@ Main table storing franchise information and metadata.
 | `required_net_worth_usd` | `integer` | Required total net worth in USD |
 | `total_investment_min_usd` | `integer` | Minimum total investment required in USD |
 | `total_investment_max_usd` | `integer` | Maximum total investment required in USD |
-| `royalty_details_text` | `text` | Royalty structure description (e.g., "8%", "3% Sliding Scale") |
+| `royalty_details_text` | `text` | Royalty structure description (e.g., "8%", "3% Sliding Scale", "$3000 per zone per month") |
 | `sba_approved` | `boolean` | Whether franchise is SBA loan pre-approved (default: `false`) |
+| `sba_registered` | `boolean` | Whether franchise is registered with the SBA (separate from sba_approved) |
+| `providing_earnings_guidance_item19` | `boolean` | Providing earnings guidance in Item 19 in FDD |
+| `additional_fees` | `text` | Additional fees beyond franchise fee and royalties |
+| `financial_assistance_details` | `text` | Details about financial assistance available (e.g., "Yes, SBA") |
+| `commission_structure` | `jsonb` | Commission structure for brokers (single_unit, multi_unit, resales, area_master_developer) |
+| `franchise_packages` | `jsonb` | Array of franchise packages with name, franchise_fee, total_investment_min/max, territories_count, description |
 
 **Operational/Lifestyle Fields (The Interest):**
 | Column | Type | Description |
@@ -57,19 +63,25 @@ Main table storing franchise information and metadata.
 |--------|------|-------------|
 | `description_text` | `text` | Full description/introduction of the franchise |
 | `why_franchise_summary` | `text` | Bullet points explaining why to choose this franchise |
-| `ideal_candidate_profile_text` | `text` | Description of the ideal franchisee candidate |
+| `ideal_candidate_profile_text` | `text` | Description of the ideal franchisee candidate (legacy field) |
+| `ideal_candidate_profile` | `jsonb` | Structured ideal candidate profile (skills array, personality_traits array, role_of_owner text) |
+| `market_growth_statistics` | `jsonb` | Market growth data (demographics, market_size, cagr, growth_period, recession_resistance) |
 
 **Territory/Availability Fields:**
 | Column | Type | Description |
 |--------|------|-------------|
 | `unavailable_states` | `jsonb` | Array of 2-letter state codes where franchise is unavailable |
-| `recent_territory_checks` | `jsonb` | Array of recently checked territories (cities/locations) |
+| `recent_territory_checks` | `jsonb` | Array of structured territory checks with date, location, is_available, notes |
+| `hot_regions` | `jsonb` | Array of hot/desirable markets (state codes or regions) |
+| `canadian_referrals` | `boolean` | Accepts Canadian referrals |
+| `international_referrals` | `boolean` | Accepts international referrals |
 | `corporate_address` | `text` | Corporate headquarters address |
 
 **Contact & Web Fields:**
 | Column | Type | Description |
 |--------|------|-------------|
 | `website_url` | `text` | Official franchise website URL |
+| `schedule_call_url` | `text` | Calendar booking URL for scheduling a call |
 
 **Historical Fields:**
 | Column | Type | Description |
@@ -85,12 +97,20 @@ Main table storing franchise information and metadata.
 | `franchise_embedding` | `vector(1536)` | Vector embedding for semantic search (OpenAI text-embedding-3-small) |
 | `is_active` | `boolean` | Whether the franchise is currently active (default: `true`) |
 | `franchises_data` | `jsonb` | Raw/unmapped data backup (background, markets, support, financials) |
+| `industry_awards` | `jsonb` | Array of industry awards with source, year, and award_name |
+| `documents` | `jsonb` | Documents and resources (regular, client_focused, recent_emails, magazine_articles) |
+| `resales_available` | `boolean` | Whether resales are available for this franchise |
+| `resales_list` | `jsonb` | List of available resales |
+| `rating` | `numeric(3,2)` | Star rating (1-5) if available |
+| `support_training_details` | `jsonb` | Structured training info (program_description, cost_included, cost_details, lodging_airfare_included, site_selection_assistance, lease_negotiation_assistance, mentor_available, mentoring_length) |
 
 **Indexes:**
 - Primary key on `id`
 - Unique constraint on `source_id`
 - Index on `franchise_name` for ILIKE searches
 - Index on `franchise_embedding` for vector similarity search
+- Indexes on boolean fields: `resales_available`, `canadian_referrals`, `international_referrals`, `sba_registered`, `providing_earnings_guidance_item19`
+- GIN indexes on JSONB fields: `commission_structure`, `industry_awards`, `documents`, `franchise_packages`, `hot_regions`
 
 **Relationships:**
 - One-to-many with `franchise_categories`
@@ -140,7 +160,7 @@ Contact information for franchises (sales representatives, brokers, etc.).
 | `id` | `integer` | Primary key (auto-increment) |
 | `franchise_id` | `integer` | Foreign key to `franchises.id` |
 | `name` | `text` | Contact person name |
-| `title` | `text` | Job title |
+| `title` | `text` | Job title (if available) |
 | `email` | `text` | Email address |
 | `phone` | `text` | Phone number |
 | `other_fields` | `jsonb` | Additional contact metadata |
@@ -331,6 +351,10 @@ Tracks scraping runs for data collection pipeline.
 | `started_at` | `timestamp` | When scraping started |
 | `completed_at` | `timestamp` | When scraping completed |
 | `error_message` | `text` | Error message if status is `"failed"` |
+| `llm_parsing_status` | `text` | LLM parsing status: `"pending"`, `"in_progress"`, `"completed"`, `"partial"`, `"failed"`, `"no_files"` |
+| `llm_parsing_started_at` | `timestamp with time zone` | When LLM parsing started |
+| `llm_parsing_completed_at` | `timestamp with time zone` | When LLM parsing completed |
+| `metadata` | `jsonb` | Additional metadata including LLM parsing statistics |
 
 **Indexes:**
 - Primary key on `id`
@@ -484,7 +508,101 @@ string[]  // Array of 2-letter state codes (e.g., ["CA", "NY"])
 
 **`franchises.recent_territory_checks`:**
 ```typescript
-string[]  // Array of recently checked territories (e.g., ["Austin, TX", "Chicago, IL"])
+Array<{
+  date: string;           // MM/DD/YYYY format
+  location: string;       // Location description (city, state, zip, or combinations)
+  is_available: boolean;  // Whether territory is available
+  notes?: string;         // Additional notes, questions, or special conditions
+}>
+```
+
+**`franchises.commission_structure`:**
+```typescript
+{
+  single_unit?: {
+    amount?: number;
+    description: string;
+  };
+  multi_unit?: {
+    percentage?: number;
+    max_per_unit?: number;
+    description: string;
+  };
+  resales?: {
+    percentage?: number;
+    max?: number;
+    description: string;
+  };
+  area_master_developer?: {
+    amount?: number | null;
+    description: string;
+  };
+}
+```
+
+**`franchises.industry_awards`:**
+```typescript
+Array<{
+  source: string;      // e.g., "FranServe's FRAN-TASTIC BRAND"
+  year: number;        // Year the award was received
+  award_name?: string; // e.g., "Fran-Tastic Brand Award"
+}>
+```
+
+**`franchises.documents`:**
+```typescript
+{
+  regular?: string[];           // Regular documents (PDFs, videos, links)
+  client_focused?: string[];    // Client-focused documents
+  recent_emails?: string[];     // Recent email campaign links
+  magazine_articles?: string[]; // Franchise Dictionary Magazine articles
+}
+```
+
+**`franchises.franchise_packages`:**
+```typescript
+Array<{
+  name: string;              // e.g., "Development Package"
+  franchise_fee: number;    // Franchise fee in USD
+  total_investment_min?: number;
+  total_investment_max?: number;
+  territories_count?: number;
+  description?: string;
+}>
+```
+
+**`franchises.support_training_details`:**
+```typescript
+{
+  program_description?: string;
+  cost_included?: boolean;
+  cost_details?: string;
+  lodging_airfare_included?: boolean;
+  site_selection_assistance?: boolean;
+  lease_negotiation_assistance?: boolean;
+  mentor_available?: boolean;
+  mentoring_length?: string;  // e.g., "Term of FA", "Ongoing"
+}
+```
+
+**`franchises.market_growth_statistics`:**
+```typescript
+{
+  demographics?: string;        // Demographic statistics and projections
+  market_size?: string;         // e.g., "$1,012 billion"
+  cagr?: string;                // e.g., "6.3%"
+  growth_period?: string;       // e.g., "2023 to 2030"
+  recession_resistance?: string;
+}
+```
+
+**`franchises.ideal_candidate_profile`:**
+```typescript
+{
+  skills?: string[];            // Array of required skills
+  personality_traits?: string[]; // Array of personality traits
+  role_of_owner?: string;       // Detailed description of owner role
+}
 ```
 
 **`franchises.franchises_data`:**
@@ -497,6 +615,8 @@ string[]  // Array of recently checked territories (e.g., ["Austin, TX", "Chicag
     semiabsentee_ownership_available?: string;
     absentee_ownership_available?: string;
     e2_visa_friendly?: string;
+    launching_units?: string;    // e.g., "15 launching units"
+    total_franchisees?: string;  // e.g., "42 total franchisees"
     // ... other background fields
   };
   available_markets?: {

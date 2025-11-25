@@ -124,12 +124,22 @@ class LeadUpdate(BaseModel):
 
 # --- Comparison Models ---
 
+class OverviewAttributes(BaseModel):
+    """Overview section with basic franchise info"""
+    industry: str = Field(..., description="Primary business category")
+    year_started: Optional[int] = Field(None, description="Year the business was founded")
+    year_franchised: Optional[int] = Field(None, description="Year franchising began")
+    operating_franchises: Optional[str] = Field(None, description="Number of operating franchises")
+
 class MoneyAttributes(BaseModel):
     investment_range: str
     liquidity_req: Optional[int] = None
     net_worth_req: Optional[int] = None
     financial_model: str = Field(..., description="e.g. 'All Cash', 'In-House Financing', 'SBA Approved'")
     overhead_level: str = Field(..., description="e.g. 'Low - Home Based', 'High - Retail Buildout'")
+    royalty: Optional[str] = Field(None, description="Royalty structure (e.g., '8%', '3% Sliding Scale')")
+    sba_registered: bool = Field(False, description="Whether franchise is SBA registered")
+    in_house_financing: Optional[str] = Field(None, description="In-house financing details")
     traffic_light: str = Field("green", description="green, yellow, red based on fit")
 
 class MotivesAttributes(BaseModel):
@@ -148,16 +158,24 @@ class InterestAttributes(BaseModel):
 class TerritoryAttributes(BaseModel):
     availability_status: str = Field(..., description="e.g. 'Available', 'Sold Out', 'Check Required'")
     territory_notes: Optional[str] = None
+    unavailable_states: Optional[List[str]] = Field(None, description="List of states where franchise is unavailable")
+
+class ValueAttributes(BaseModel):
+    """Value proposition section"""
+    why_franchise: Optional[str] = Field(None, description="Why choose this franchise - summary bullets")
+    value_proposition: Optional[str] = Field(None, description="Franchise description/value proposition")
 
 class ComparisonItem(BaseModel):
     franchise_id: int
     franchise_name: str
     image_url: Optional[str] = None
     verdict: str = Field(..., description="1-2 sentence AI-generated summary for this lead")
+    overview: OverviewAttributes
     money: MoneyAttributes
     motives: MotivesAttributes
     interest: InterestAttributes
     territories: TerritoryAttributes
+    value: ValueAttributes
 
 class ComparisonResponse(BaseModel):
     items: List[ComparisonItem]

@@ -60,8 +60,16 @@ function ComparisonContent() {
                 const savedIds = savedAnalysis.items.map((i: any) => i.franchise_id).sort().join(',');
                 const paramIds = idsParam ? idsParam.split(',').map(n => parseInt(n)).sort().join(',') : '';
 
-                if (!idsParam || savedIds === paramIds) {
+                // Check if saved analysis is complete (has 'value' attribute with data)
+                const isAnalysisComplete = savedAnalysis.items.every((item: any) => 
+                  item.value && (item.value.why_franchise || item.value.value_proposition)
+                );
+
+                if ((!idsParam || savedIds === paramIds) && isAnalysisComplete) {
                     comparisonData = savedAnalysis;
+                } else if (!idsParam || savedIds === paramIds) {
+                    // Saved analysis exists but is incomplete - will regenerate
+                    console.log('Saved analysis is incomplete, regenerating...');
                 }
             }
         }

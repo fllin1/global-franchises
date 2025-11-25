@@ -1,4 +1,5 @@
 from typing import List, Optional
+import json
 from fastapi import APIRouter, HTTPException, Body
 from loguru import logger
 
@@ -7,10 +8,12 @@ from src.backend.models import (
     ComparisonResponse, 
     ComparisonItem, 
     LeadProfile, 
+    OverviewAttributes,
     MoneyAttributes,
     MotivesAttributes,
     InterestAttributes,
-    TerritoryAttributes
+    TerritoryAttributes,
+    ValueAttributes
 )
 from src.backend.narrator import generate_comparison_analysis
 
@@ -55,6 +58,30 @@ async def compare_franchises(
             fid = f['id']
             analysis = ai_analysis.get(fid, {})
             
+            # Parse franchises_data JSONB field
+            f_data = f.get('franchises_data', {})
+            if isinstance(f_data, str):
+                try:
+                    f_data = json.loads(f_data)
+                except:
+                    f_data = {}
+            background = f_data.get('background', {}) if f_data else {}
+            
+            # --- Overview Attributes ---
+            operating_franchises = None
+            if background:
+                total_franchisees = background.get('total_franchisees')
+                if total_franchisees:
+                    operating_franchises = str(total_franchisees)
+            
+            overview = OverviewAttributes(
+                industry=f.get('primary_category') or 'Uncategorized',
+                year_started=f.get('founded_year'),
+                year_franchised=f.get('franchised_year'),
+                operating_franchises=operating_franchises
+            )
+            
+            # --- Money Attributes ---
             # Fallback values if AI fails or returns partial data
             money = analysis.get("money", {
                 "financial_model": "Standard Franchise Agreement",
@@ -74,6 +101,9 @@ async def compare_franchises(
             money["investment_range"] = inv_range
             money["liquidity_req"] = f.get('required_cash_investment_usd')
             money["net_worth_req"] = f.get('required_net_worth_usd')
+            money["royalty"] = f.get('royalty_details_text')
+            money["sba_registered"] = f.get('sba_registered') or False
+            money["in_house_financing"] = f.get('financial_assistance_details')
             
             # Traffic Light Logic for Money (Budget Check)
             if lead_profile and lead_profile.effective_budget and min_inv:
@@ -97,10 +127,9 @@ async def compare_franchises(
                 "traffic_light": "yellow"
             })
             
-            # Territory Logic
+            # --- Territory Attributes ---
             unavailable = f.get('unavailable_states') or []
             avail_status = "Check Required"
-            notes = None
             
             if lead_profile and lead_profile.state_code:
                 if lead_profile.state_code in unavailable:
@@ -110,18 +139,32 @@ async def compare_franchises(
             
             territories = TerritoryAttributes(
                 availability_status=avail_status,
-                territory_notes=f"Unavailable in: {', '.join(unavailable[:3])}..." if unavailable else None
+                territory_notes=f"Unavailable in: {', '.join(unavailable[:5])}" if unavailable else None,
+                unavailable_states=unavailable if unavailable else None
+            )
+            
+            # --- Value Attributes ---
+            # Truncate description_text to reasonable length for display
+            description = f.get('description_text') or ''
+            if len(description) > 300:
+                description = description[:300].rsplit(' ', 1)[0] + '...'
+            
+            value = ValueAttributes(
+                why_franchise=f.get('why_franchise_summary'),
+                value_proposition=description if description else None
             )
             
             item = ComparisonItem(
                 franchise_id=fid,
                 franchise_name=f['franchise_name'],
-                image_url=f.get('image_url'), # Although we removed it from search, it might exist in DB
+                image_url=f.get('image_url'),
                 verdict=analysis.get("verdict", "A potential match based on your criteria."),
+                overview=overview,
                 money=MoneyAttributes(**money),
                 motives=MotivesAttributes(**motives),
                 interest=InterestAttributes(**interest),
-                territories=territories
+                territories=territories,
+                value=value
             )
             items.append(item)
             

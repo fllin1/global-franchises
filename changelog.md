@@ -7,6 +7,250 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-25] - Comparison Matrix Enhancement & PDF Export
+
+### Added
+- **PDF Export Feature**:
+  - Implemented client-side PDF export for the Comparison Matrix using `html2pdf.js` (`frontend/src/components/ComparisonTable.tsx`).
+  - Added "Export PDF" button to the toolbar next to "Save Analysis" button.
+  - PDF exports in landscape format with proper scaling and formatting.
+  - Filename includes lead name and date (e.g., `John_Doe_Franchise_Matrix_2025-11-25.pdf`).
+  - Added `html2pdf.js` package to frontend dependencies (`frontend/package.json`).
+  - Created TypeScript declaration file for `html2pdf.js` (`frontend/src/types/html2pdf.d.ts`).
+
+- **New Comparison Matrix Fields**:
+  - **Overview Section** (new):
+    - Industry (`primary_category`)
+    - Year Started (`founded_year`)
+    - Year Franchised (`franchised_year`)
+    - Operating Franchises (from `franchises_data.background`)
+  - **Wallet Section** (enhanced):
+    - Net Worth Requirement (`required_net_worth_usd`)
+    - Royalty (`royalty_details_text`)
+    - SBA Registered (`sba_registered`)
+    - In-House Financing (`financial_assistance_details`)
+  - **Territory Section** (enhanced):
+    - Unavailable States list with visual badges
+  - **Value Proposition Section** (new):
+    - Why This Franchise (`why_franchise_summary`)
+    - Description/Value Proposition (`description_text` - truncated to 300 chars)
+
+- **Backend Model Updates**:
+  - Added `OverviewAttributes` model to `src/backend/models.py` (industry, year_started, year_franchised, operating_franchises).
+  - Added `ValueAttributes` model to `src/backend/models.py` (why_franchise, value_proposition).
+  - Enhanced `MoneyAttributes` model with `royalty`, `sba_registered`, `in_house_financing` fields.
+  - Enhanced `TerritoryAttributes` model with `unavailable_states` array.
+  - Updated `ComparisonItem` model to include `overview` and `value` sections.
+
+- **Frontend Type Updates**:
+  - Added `OverviewAttributes` interface to `frontend/src/types/index.ts`.
+  - Added `ValueAttributes` interface to `frontend/src/types/index.ts`.
+  - Enhanced `MoneyAttributes` interface with new financial fields.
+  - Enhanced `TerritoryAttributes` interface with `unavailable_states` array.
+  - Updated `ComparisonItem` interface with new sections.
+
+### Fixed
+- **Sticky Section Headers**:
+  - Fixed horizontal scroll issue where section headers ("Wallet", "Motives", "Life", "Empire") would scroll out of view.
+  - Converted section header rows from full-width `colSpan` to having the title in the sticky left column.
+  - Section titles now remain visible when scrolling horizontally through franchise columns.
+
+- **Comparison Matrix N/A Values**:
+  - Fixed issue where "Why This Franchise" and "Description" fields displayed "N/A" due to stale cached analysis data.
+  - Added completeness check in `frontend/src/app/franchises/compare/page.tsx` to detect incomplete saved analyses.
+  - Page now regenerates fresh data from API if saved analysis is missing `value` section (why_franchise, value_proposition).
+  - Note: Full fix requires deploying updated `comparison.py` to production backend (currently frontend points to production API).
+
+- **PDF Export Crash**:
+  - Fixed runtime error that caused page crash when clicking "Export PDF" (`frontend/src/components/ComparisonTable.tsx`).
+  - Root cause: `html2canvas` doesn't support modern CSS color functions (`lab()`, `oklch()`) used by Tailwind CSS v4.
+  - Added defensive error handling to prevent page crash.
+  - Added fallback prompt to use browser's native print dialog when html2pdf export fails.
+  - Clone element now wrapped with light mode style overrides to reduce color parsing issues.
+
+### Changed
+- **Comparison Endpoint**:
+  - Updated `/api/franchises/compare` endpoint (`src/backend/comparison.py`) to populate all new fields.
+  - Added extraction of `operating_franchises` from `franchises_data.background` JSONB field.
+  - Added truncation logic for `description_text` (max 300 chars with word boundary).
+  - Enhanced territory notes to show up to 5 unavailable states.
+
+## [2025-11-24] - Markdown to Database Extraction Pipeline
+
+### Added (Later Update)
+- **LLM Processing Tracking**:
+  - Added `llm_processed_at` column to `franchises` table (`docs/database/add_llm_processed_at.sql`)
+  - Tracks when each franchise was processed by LLM extraction pipeline
+  - Enables batch processing to resume without reprocessing already-done files
+  - Skip logic now checks `llm_processed_at IS NOT NULL` instead of just source_id existence
+
+### Changed (Later Update)
+- **Batch Extraction Skip Logic**:
+  - Changed from skipping based on `source_id` existence to skipping based on `llm_processed_at`
+  - Renamed `get_existing_source_ids()` to `get_llm_processed_source_ids()` in both scripts
+  - This allows updating existing franchises that haven't been LLM-processed yet
+
+### Added
+- **Field Mapper Utility**:
+  - Created `src/data/functions/field_mapper.py` with transformations between LLM output and database schema
+  - `parse_date_mdy_to_ymd()`: Converts dates from MM/DD/YYYY to YYYY-MM-DD format
+  - `array_to_text()`: Converts arrays to formatted text strings
+  - `generate_slug()`: Creates URL-friendly slugs from franchise names
+  - `extract_source_id_from_filename()`: Extracts FranID from filenames like `FranID_1003.md`
+  - `build_source_url()`: Constructs source URLs from FranIDs
+  - `map_llm_output_to_db_schema()`: Complete mapping function handling all field transformations
+  - `extract_contacts_data()`: Extracts and cleans contacts from LLM output
+
+- **Territory Check Parsing Functions** (`src/data/functions/field_mapper.py`):
+  - `extract_state_code()`: Extracts 2-letter US state code from location text
+  - `extract_zip_code()`: Extracts 5-digit zip code from location text
+  - `extract_radius_miles()`: Extracts radius from patterns like "30 miles around"
+  - `lookup_zip_with_pgeocode()`: Gets city, state, lat, lon from zip using pgeocode
+  - `parse_territory_check()`: Parses single territory check with full extraction
+  - `extract_territory_checks_data()`: Extracts all territory checks from LLM output
+
+- **Single Record Extraction Script**:
+  - Created `src/backend/scripts/run_single_md_extraction.py` for testing single file extraction
+  - Downloads markdown from Supabase Storage
+  - Extracts source_id from filename (FranID_X.md format)
+  - Calls Gemini LLM with markdown prompt for structured extraction
+  - Applies field transformations via mapper
+  - Upserts franchise data to `franchises` table using `on_conflict="source_id"`
+  - Upserts contacts to `contacts` table using email-based deduplication
+  - Inserts territory checks to `territory_checks` table with parsed location data
+  - Handles category relationships in `franchise_categories` table
+  - CLI arguments: `--prefix` (date), `--fran-id` (specific franchise)
+
+- **Batch Extraction Script**:
+  - Created `src/backend/scripts/run_batch_md_extraction.py` for processing multiple files
+  - Queries existing source_ids to identify unprocessed files
+  - Sequential processing with configurable delay between API calls
+  - Progress tracking with tqdm progress bar
+  - Detailed summary report (successful, failed, skipped counts)
+  - Updates `scraping_runs` table with LLM parsing status
+  - CLI arguments: `--prefix`, `--batch-size` (default 50), `--delay` (default 1.0s), `--force-reprocess`
+
+- **LLM Parsing Status Tracking**:
+  - Added migration `docs/database/add_llm_parsing_fields.sql`
+  - New columns in `scraping_runs` table:
+    - `llm_parsing_status`: pending/in_progress/completed/partial/failed/no_files
+    - `llm_parsing_started_at`: Timestamp when parsing started
+    - `llm_parsing_completed_at`: Timestamp when parsing completed
+  - Metadata JSONB stores: `llm_parsing_completed_files`, `llm_parsing_failed_files`, `llm_parsing_skipped_files`, `llm_parsing_duration_seconds`
+
+- **Contacts Email Constraint**:
+  - Added migration `docs/database/add_contacts_email_constraint.sql`
+  - Created partial unique index on `contacts(franchise_id, email)` for non-null emails
+  - Enables email-based deduplication for contacts
+
+### Changed
+- **Contacts Upsert Strategy**:
+  - Changed from delete+insert to email-based upsert in both extraction scripts
+  - Contacts WITH email: Find existing by (franchise_id, email), update if exists, insert if not
+  - Contacts WITHOUT email: Delete old null-email contacts, insert new ones
+
+- **Database Schema Documentation**:
+  - Updated `docs/database/SCHEMA.md` with new `scraping_runs` fields for LLM parsing tracking
+
+### Fixed
+- **Category Relation Handling**:
+  - Fixed `handle_category_relation()` to use correct Supabase upsert syntax (removed `.select()` chaining)
+
+## [2025-01-28] - Enhanced Markdown to JSON Extraction
+
+### Added
+- **Basic Franchise Information Extraction**:
+  - Added explicit section (Section 0) in prompt for extracting franchise_name, primary_category, sub_categories, website_url, and corporate_address
+  - Enhanced schema descriptions for categories, subcategories, website, and corporate_address with extraction guidance
+  - Emphasized that these fields appear early in markdown and must be extracted first
+- **Comprehensive Pattern Extraction**:
+  - Enhanced `markdown_prompt.txt` (`config/franserve/markdown_prompt.txt`) with explicit instructions for all information patterns found in franchise markdown files.
+  - Added structured extraction requirements for territory checks, commission structures, awards, documents, market availability, and more.
+  - Added examples and detailed guidance for complex patterns like multiple franchise packages and structured territory checks.
+
+- **Enhanced Structured Output Schema**:
+  - Updated `structured_output.json` (`config/franserve/structured_output.json`) with comprehensive new fields:
+    - `commission_structure`: Structured commission data (single_unit, multi_unit, resales, area_master_developer)
+    - `industry_awards`: Array of awards with source, year, and award_name
+    - `documents`: Organized documents (regular, client_focused, recent_emails, magazine_articles)
+    - `resales_available` and `resales_list`: Resale availability information
+    - `rating`: Star rating (1-5)
+    - `schedule_call_url`: Calendar booking URL
+    - `hot_regions`: Array of hot/desirable markets
+    - `canadian_referrals` and `international_referrals`: Referral acceptance booleans
+    - `franchise_packages`: Array of franchise packages with detailed information
+    - `support_training_details`: Structured training and support information
+    - `market_growth_statistics`: Extracted market growth data from WHY section
+    - `ideal_candidate_profile`: Structured profile (skills, personality_traits, role_of_owner)
+    - Enhanced `recent_territory_checks`: Changed from string array to structured objects with date, location, is_available, notes
+    - Enhanced `franchises_data`: Added launching_units and total_franchisees fields
+    - Added `title` field to `contacts_data` schema
+
+- **Database Schema Enhancements**:
+  - Created migration script `add_enhanced_franchise_fields.sql` (`docs/database/add_enhanced_franchise_fields.sql`):
+    - Added `commission_structure` (JSONB) to `franchises` table
+    - Added `industry_awards` (JSONB) to `franchises` table
+    - Added `documents` (JSONB) to `franchises` table
+    - Added `resales_available` (boolean) and `resales_list` (JSONB) to `franchises` table
+    - Added `rating` (numeric) to `franchises` table
+    - Added `schedule_call_url` (text) to `franchises` table
+    - Added `hot_regions` (JSONB) to `franchises` table
+    - Added `canadian_referrals` and `international_referrals` (boolean) to `franchises` table
+    - Added `franchise_packages` (JSONB) to `franchises` table
+    - Added `support_training_details` (JSONB) to `franchises` table
+    - Added `market_growth_statistics` (JSONB) to `franchises` table
+    - Added `ideal_candidate_profile` (JSONB) to `franchises` table
+    - Added `sba_registered` (boolean) to `franchises` table
+    - Added `providing_earnings_guidance_item19` (boolean) to `franchises` table
+    - Added `additional_fees` (text) to `franchises` table
+    - Added `financial_assistance_details` (text) to `franchises` table
+    - Added `title` (text) to `contacts` table
+    - Added indexes for new boolean fields and GIN indexes for JSONB fields
+
+### Changed
+- **Prompt Enhancement**:
+  - Completely rewrote `markdown_prompt.txt` to be more explicit and comprehensive:
+    - Added Section 0 for basic franchise information (name, categories, subcategories, website, corporate address) that appears early in markdown
+    - Added 15 critical extraction requirements with detailed examples (now 16 sections total)
+    - Enhanced BACKGROUND section extraction with comprehensive field-by-field instructions
+    - Emphasized structured extraction for territory checks (with dates, locations, availability, notes)
+    - Added instructions for handling multiple franchise fee packages
+    - Added instructions for extracting market statistics from WHY section
+    - Added instructions for structured extraction of ideal franchisee profile
+    - Enhanced guidance for commission structures, awards, documents, and market availability
+    - Added explicit instructions for extracting all background fields (founded_year, franchised_year, units operating, etc.)
+
+- **Schema Updates**:
+  - Enhanced `recent_territory_checks` from simple string array to structured array of objects
+  - Enhanced `royalty_details_text` description to handle both percentage and fixed amount formats
+  - Enhanced `franchise_fee_usd` description to handle multiple packages
+  - Added structured `ideal_candidate_profile` object alongside legacy `ideal_candidate_profile_text` array
+
+- **Documentation**:
+  - Updated `SCHEMA.md` (`docs/database/SCHEMA.md`) with all new fields:
+    - Added new fields to Financial Fields section
+    - Added new fields to Narrative Fields section
+    - Enhanced Territory/Availability Fields section
+    - Enhanced Contact & Web Fields section
+    - Enhanced Search & Metadata Fields section
+    - Updated indexes documentation
+    - Added comprehensive JSONB structure documentation for all new fields
+    - Updated `recent_territory_checks` structure documentation
+    - Updated `contacts` table documentation with `title` field
+
+### Fixed
+- **Data Extraction Completeness**:
+  - Fixed missing extraction of commission structures from markdown files
+  - Fixed missing extraction of industry awards and rankings
+  - Fixed missing extraction of documents and resources
+  - Fixed missing extraction of market availability details (hot regions, Canadian/international referrals)
+  - Fixed missing extraction of franchise packages when multiple packages exist
+  - Fixed missing extraction of structured support and training details
+  - Fixed missing extraction of market growth statistics from WHY section
+  - Fixed missing extraction of structured ideal franchisee profile (skills, traits, role)
+  - Fixed territory checks being stored as simple strings instead of structured objects with dates and availability
+  - Fixed missing contact title field extraction
+
 ## [2025-01-27] - Tailwind CSS v4 Dark Mode Configuration
 
 ### Fixed

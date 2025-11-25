@@ -81,12 +81,22 @@ export interface TerritoryFranchise {
 
 // --- Comparison Feature Types ---
 
+export interface OverviewAttributes {
+  industry: string;
+  year_started?: number;
+  year_franchised?: number;
+  operating_franchises?: string;
+}
+
 export interface MoneyAttributes {
   investment_range: string;
   liquidity_req?: number;
   net_worth_req?: number;
   financial_model: string;
   overhead_level: string;
+  royalty?: string;
+  sba_registered: boolean;
+  in_house_financing?: string;
   traffic_light: 'green' | 'yellow' | 'red';
 }
 
@@ -108,6 +118,12 @@ export interface InterestAttributes {
 export interface TerritoryAttributes {
   availability_status: string;
   territory_notes?: string;
+  unavailable_states?: string[];
+}
+
+export interface ValueAttributes {
+  why_franchise?: string;
+  value_proposition?: string;
 }
 
 export interface ComparisonItem {
@@ -115,10 +131,12 @@ export interface ComparisonItem {
   franchise_name: string;
   image_url?: string;
   verdict: string;
+  overview: OverviewAttributes;
   money: MoneyAttributes;
   motives: MotivesAttributes;
   interest: InterestAttributes;
   territories: TerritoryAttributes;
+  value: ValueAttributes;
 }
 
 export interface ComparisonResponse {
