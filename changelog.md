@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-25] - PDF Export Rewrite with jsPDF
+
+### Added
+- **Programmatic PDF Export with jsPDF + AutoTable**:
+  - Replaced `html2pdf.js` (HTML screenshot approach) with `jsPDF` + `jspdf-autotable` for proper PDF generation.
+  - Added `jspdf` and `jspdf-autotable` to frontend dependencies (`frontend/package.json`).
+  - PDF now generates proper tables instead of cropped HTML screenshots.
+
+- **PDF Cover Page**:
+  - Title: "Franchise Comparison Matrix" with subtitle.
+  - Lead profile section showing candidate name, location, liquidity, and net worth (if selected).
+  - Summary table listing all compared franchises with industry, investment range, and fit assessment.
+  - Export timestamp.
+
+- **Franchise Detail Pages (One Per Franchise)**:
+  - Each franchise gets a dedicated page with professional layout.
+  - Color-coded header with franchise name and industry.
+  - Verdict box with AI-generated pitch.
+  - **Overview Table**: Year Started, Year Franchised, Operating Franchises.
+  - **Financials Table**: Investment range, liquidity, net worth, royalty, SBA status, financing, financial model, overhead (with fit indicator badge).
+  - **Motives Table**: Recession resistance, scalability, market demand, passive income potential.
+  - **Operations Table**: Role type, sales model, employees, inventory (with role fit indicator badge).
+  - **Territory Table**: Availability status, unavailable states list.
+  - **Value Proposition Section**: "Why This Franchise" bullet points, franchise description.
+
+- **Page Numbers**: Footer on all pages showing "Page X of Y".
+
+### Changed
+- **PDF Export Function Complete Rewrite**:
+  - Replaced `handleExportPDF` function in `frontend/src/components/ComparisonTable.tsx`.
+  - Removed all html2canvas/html2pdf related code and CSS workarounds.
+  - New function uses jsPDF's native table generation for clean, properly paginated output.
+
+### Removed
+- Removed `html2pdf.js` dependency from `frontend/package.json`.
+- Deleted `frontend/src/types/html2pdf.d.ts` type declaration file.
+- Removed HTML cloning and CSS override workarounds for html2canvas compatibility.
+
 ## [2025-11-25] - Comparison Table Display & PDF Export Fix
 
 ### Added

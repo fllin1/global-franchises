@@ -30,11 +30,56 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
     [selectedLeadId, leads]
   );
 
-  // PDF Export function
-  const handleExportPDF = async () => {
-    if (!tableRef.current || isExporting) return;
+  // Helper to parse content arrays (same logic as ContentList)
+  const parseContentToArray = (content: any): string[] => {
+    if (!content) return [];
     
-    // Ensure we're in the browser
+    let items: string[] = [];
+    
+    try {
+      if (Array.isArray(content)) {
+        items = content;
+      } else if (typeof content === 'string') {
+        const trimmed = content.trim();
+        
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          try {
+            items = JSON.parse(trimmed);
+          } catch {
+            const jsonCompatible = trimmed.replace(/'/g, '"');
+            try {
+              items = JSON.parse(jsonCompatible);
+            } catch {
+              const matches = trimmed.match(/'([^']+)'/g);
+              if (matches) {
+                items = matches.map(m => m.replace(/'/g, ''));
+              } else {
+                items = trimmed.split('\n').filter(line => line.trim().length > 0);
+              }
+            }
+          }
+        } else {
+          items = trimmed.split('\n').filter(line => line.trim().length > 0);
+        }
+      } else {
+        items = [String(content)];
+      }
+    } catch {
+      items = [String(content)];
+    }
+
+    return items.map(item => {
+      if (typeof item === 'string') {
+        return item.replace(/^["']|["']$/g, '').trim();
+      }
+      return String(item).trim();
+    }).filter(item => item.length > 0);
+  };
+
+  // PDF Export function using jsPDF + AutoTable
+  const handleExportPDF = async () => {
+    if (isExporting) return;
+    
     if (typeof window === 'undefined') {
       console.error('PDF export is only available in browser');
       return;
@@ -43,171 +88,442 @@ export default function ComparisonTable({ data, leads = [], initialLeadId, onClo
     setIsExporting(true);
     
     try {
-      // Dynamic import to avoid SSR issues
-      const html2pdfModule = await import('html2pdf.js');
-      const html2pdf = html2pdfModule.default;
+      // Dynamic imports for jsPDF
+      const { jsPDF } = await import('jspdf');
+      await import('jspdf-autotable');
       
-      if (!html2pdf) {
-        throw new Error('html2pdf module not loaded correctly');
-      }
-      
-      const element = tableRef.current;
       const leadName = selectedLead?.candidate_name || 'Comparison';
       const filename = `${leadName.replace(/[^a-zA-Z0-9]/g, '_')}_Franchise_Matrix_${new Date().toISOString().split('T')[0]}.pdf`;
       
-      const opt = {
-        margin: [0.3, 0.3, 0.3, 0.3],
-        filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true,
-          logging: false,
-          allowTaint: true,
-          scrollX: 0,
-          scrollY: 0,
-          backgroundColor: '#ffffff'
-        },
-        jsPDF: { 
-          unit: 'in', 
-          format: 'letter', 
-          orientation: 'landscape' 
-        },
-        pagebreak: { mode: ['css', 'legacy'] }
+      // Create PDF document (Letter size, portrait)
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'letter'
+      });
+      
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 40;
+      const contentWidth = pageWidth - (margin * 2);
+      
+      // Colors
+      const colors = {
+        primary: [79, 70, 229] as [number, number, number],      // Indigo-600
+        secondary: [100, 116, 139] as [number, number, number],  // Slate-500
+        success: [34, 197, 94] as [number, number, number],      // Green-500
+        warning: [234, 179, 8] as [number, number, number],      // Yellow-500
+        danger: [239, 68, 68] as [number, number, number],       // Red-500
+        headerBg: [241, 245, 249] as [number, number, number],   // Slate-100
+        text: [15, 23, 42] as [number, number, number],          // Slate-900
+        muted: [100, 116, 139] as [number, number, number],      // Slate-500
       };
       
-      // Clone element for PDF export
-      const clonedElement = element.cloneNode(true) as HTMLElement;
+      // ===============================
+      // COVER PAGE
+      // ===============================
+      let yPos = margin + 60;
       
-      // Create a wrapper with forced light mode and explicit colors
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = `
-        position: absolute;
-        left: -9999px;
-        top: 0;
-        width: ${element.offsetWidth}px;
-        background: #ffffff;
-        color-scheme: light;
-      `;
+      // Title
+      doc.setFontSize(28);
+      doc.setTextColor(...colors.primary);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Franchise Comparison Matrix', pageWidth / 2, yPos, { align: 'center' });
       
-      // Force light mode colors - comprehensive CSS reset for html2canvas compatibility
-      // html2canvas doesn't support modern CSS color functions like lab(), oklch()
-      const styleOverride = document.createElement('style');
-      styleOverride.textContent = `
-        * {
-          color-scheme: light !important;
-          --background: #ffffff !important;
-          --foreground: #1f2937 !important;
-          --color-background: #ffffff !important;
-          --color-foreground: #1f2937 !important;
-        }
+      yPos += 30;
+      doc.setFontSize(12);
+      doc.setTextColor(...colors.muted);
+      doc.setFont('helvetica', 'normal');
+      doc.text('AI-Powered "Kill Sheet" Analysis', pageWidth / 2, yPos, { align: 'center' });
+      
+      yPos += 50;
+      
+      // Lead Info Box
+      if (selectedLead) {
+        doc.setFillColor(248, 250, 252); // Slate-50
+        doc.roundedRect(margin, yPos, contentWidth, 80, 8, 8, 'F');
         
-        /* Force explicit colors on all elements to avoid lab()/oklch() */
-        .bg-white, [class*="bg-white"] { background-color: #ffffff !important; }
-        .bg-slate-50, [class*="bg-slate-50"] { background-color: #f8fafc !important; }
-        .bg-slate-100, [class*="bg-slate-100"] { background-color: #f1f5f9 !important; }
-        .bg-slate-800, [class*="bg-slate-800"] { background-color: #1e293b !important; }
-        .bg-slate-900, [class*="bg-slate-900"] { background-color: #0f172a !important; }
-        .bg-indigo-50, [class*="bg-indigo-50"] { background-color: #eef2ff !important; }
-        .bg-indigo-100, [class*="bg-indigo-100"] { background-color: #e0e7ff !important; }
-        .bg-green-100, [class*="bg-green-100"] { background-color: #dcfce7 !important; }
-        .bg-green-500, [class*="bg-green-500"] { background-color: #22c55e !important; }
-        .bg-yellow-100, [class*="bg-yellow-100"] { background-color: #fef9c3 !important; }
-        .bg-yellow-500, [class*="bg-yellow-500"] { background-color: #eab308 !important; }
-        .bg-red-50, [class*="bg-red-50"] { background-color: #fef2f2 !important; }
-        .bg-red-100, [class*="bg-red-100"] { background-color: #fee2e2 !important; }
-        .bg-red-500, [class*="bg-red-500"] { background-color: #ef4444 !important; }
-        .bg-indigo-400, [class*="bg-indigo-400"] { background-color: #818cf8 !important; }
+        yPos += 25;
+        doc.setFontSize(11);
+        doc.setTextColor(...colors.secondary);
+        doc.setFont('helvetica', 'bold');
+        doc.text('CANDIDATE', margin + 20, yPos);
         
-        .text-slate-300, [class*="text-slate-300"] { color: #cbd5e1 !important; }
-        .text-slate-400, [class*="text-slate-400"] { color: #94a3b8 !important; }
-        .text-slate-500, [class*="text-slate-500"] { color: #64748b !important; }
-        .text-slate-600, [class*="text-slate-600"] { color: #475569 !important; }
-        .text-slate-700, [class*="text-slate-700"] { color: #334155 !important; }
-        .text-slate-800, [class*="text-slate-800"] { color: #1e293b !important; }
-        .text-slate-900, [class*="text-slate-900"] { color: #0f172a !important; }
-        .text-white, [class*="text-white"] { color: #ffffff !important; }
-        .text-indigo-700, [class*="text-indigo-700"] { color: #4338ca !important; }
-        .text-indigo-300, [class*="text-indigo-300"] { color: #a5b4fc !important; }
-        .text-green-600, [class*="text-green-600"] { color: #16a34a !important; }
-        .text-green-800, [class*="text-green-800"] { color: #166534 !important; }
-        .text-green-300, [class*="text-green-300"] { color: #86efac !important; }
-        .text-yellow-800, [class*="text-yellow-800"] { color: #854d0e !important; }
-        .text-red-700, [class*="text-red-700"] { color: #b91c1c !important; }
-        .text-red-800, [class*="text-red-800"] { color: #991b1b !important; }
+        yPos += 18;
+        doc.setFontSize(16);
+        doc.setTextColor(...colors.text);
+        doc.text(selectedLead.candidate_name || 'Unknown', margin + 20, yPos);
         
-        .border-slate-100, [class*="border-slate-100"] { border-color: #f1f5f9 !important; }
-        .border-slate-200, [class*="border-slate-200"] { border-color: #e2e8f0 !important; }
-        .border-slate-700, [class*="border-slate-700"] { border-color: #334155 !important; }
-        .border-slate-800, [class*="border-slate-800"] { border-color: #1e293b !important; }
-        .border-indigo-100, [class*="border-indigo-100"] { border-color: #e0e7ff !important; }
-        .border-indigo-800, [class*="border-indigo-800"] { border-color: #3730a3 !important; }
-        .border-green-200, [class*="border-green-200"] { border-color: #bbf7d0 !important; }
-        .border-yellow-200, [class*="border-yellow-200"] { border-color: #fef08a !important; }
-        .border-red-100, [class*="border-red-100"] { border-color: #fee2e2 !important; }
-        .border-red-200, [class*="border-red-200"] { border-color: #fecaca !important; }
-        .border-red-800, [class*="border-red-800"] { border-color: #991b1b !important; }
+        yPos += 18;
+        doc.setFontSize(10);
+        doc.setTextColor(...colors.muted);
+        const location = selectedLead.profile_data.location || 'No location';
+        const stateCode = selectedLead.profile_data.state_code ? ` (${selectedLead.profile_data.state_code})` : '';
+        doc.text(`Location: ${location}${stateCode}`, margin + 20, yPos);
         
-        /* Remove dark mode variants entirely */
-        .dark\\:bg-slate-800, .dark\\:bg-slate-900, .dark\\:bg-slate-950,
-        [class*="dark:bg-"] { background-color: inherit !important; }
-        .dark\\:text-white, .dark\\:text-slate-300, .dark\\:text-slate-400,
-        [class*="dark:text-"] { color: inherit !important; }
-        .dark\\:border-slate-700, .dark\\:border-slate-800,
-        [class*="dark:border-"] { border-color: inherit !important; }
-      `;
-      wrapper.appendChild(styleOverride);
-      wrapper.appendChild(clonedElement);
-      
-      // Remove dark mode classes from clone
-      clonedElement.classList.remove('dark');
-      clonedElement.querySelectorAll('.dark').forEach(el => el.classList.remove('dark'));
-      
-      // Also remove any data-theme="dark" attributes
-      clonedElement.removeAttribute('data-theme');
-      clonedElement.querySelectorAll('[data-theme]').forEach(el => el.removeAttribute('data-theme'));
-      
-      // Apply inline styles to ensure colors work with html2canvas
-      const applyInlineColors = (el: HTMLElement) => {
-        const computed = window.getComputedStyle(el);
-        const bgColor = computed.backgroundColor;
-        const textColor = computed.color;
-        const borderColor = computed.borderColor;
+        // Financial info on right side
+        const rightX = pageWidth - margin - 150;
+        yPos -= 36;
+        doc.setFontSize(10);
+        doc.setTextColor(...colors.secondary);
+        doc.text('Liquidity:', rightX, yPos);
+        doc.setTextColor(...colors.text);
+        doc.setFont('helvetica', 'bold');
+        doc.text(selectedLead.profile_data.liquidity ? `$${selectedLead.profile_data.liquidity.toLocaleString()}` : 'N/A', rightX + 60, yPos);
         
-        // Only override if it looks like a modern CSS function
-        if (bgColor && (bgColor.includes('lab') || bgColor.includes('oklch') || bgColor.includes('color('))) {
-          el.style.backgroundColor = '#ffffff';
-        }
-        if (textColor && (textColor.includes('lab') || textColor.includes('oklch') || textColor.includes('color('))) {
-          el.style.color = '#1f2937';
-        }
-        if (borderColor && (borderColor.includes('lab') || borderColor.includes('oklch') || borderColor.includes('color('))) {
-          el.style.borderColor = '#e2e8f0';
-        }
-      };
+        yPos += 15;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...colors.secondary);
+        doc.text('Net Worth:', rightX, yPos);
+        doc.setTextColor(...colors.text);
+        doc.setFont('helvetica', 'bold');
+        doc.text(selectedLead.profile_data.net_worth ? `$${selectedLead.profile_data.net_worth.toLocaleString()}` : 'N/A', rightX + 60, yPos);
+        
+        yPos += 65;
+      }
       
-      // Apply to all elements
-      applyInlineColors(clonedElement);
-      clonedElement.querySelectorAll('*').forEach(el => {
-        if (el instanceof HTMLElement) {
-          applyInlineColors(el);
+      // Franchises being compared
+      yPos += 20;
+      doc.setFontSize(14);
+      doc.setTextColor(...colors.text);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Franchises Compared (${items.length})`, margin, yPos);
+      
+      yPos += 20;
+      
+      // Summary table of all franchises
+      const summaryData = items.map((item, idx) => [
+        (idx + 1).toString(),
+        item.franchise_name,
+        item.overview?.industry || 'N/A',
+        item.money.investment_range,
+        item.money.traffic_light === 'green' ? '✓ Good Fit' : item.money.traffic_light === 'yellow' ? '⚠ Caution' : '✗ Mismatch'
+      ]);
+      
+      (doc as any).autoTable({
+        startY: yPos,
+        head: [['#', 'Franchise', 'Industry', 'Investment', 'Fit']],
+        body: summaryData,
+        margin: { left: margin, right: margin },
+        headStyles: { 
+          fillColor: colors.headerBg, 
+          textColor: colors.text,
+          fontStyle: 'bold',
+          fontSize: 9
+        },
+        bodyStyles: { 
+          fontSize: 9,
+          textColor: colors.text
+        },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
+        columnStyles: {
+          0: { cellWidth: 25, halign: 'center' },
+          1: { cellWidth: 150 },
+          2: { cellWidth: 100 },
+          3: { cellWidth: 100 },
+          4: { cellWidth: 70, halign: 'center' }
         }
       });
       
-      document.body.appendChild(wrapper);
+      yPos = (doc as any).lastAutoTable.finalY + 30;
       
-      try {
-        await html2pdf().set(opt).from(clonedElement).save();
-      } finally {
-        document.body.removeChild(wrapper);
+      // Export info
+      doc.setFontSize(9);
+      doc.setTextColor(...colors.muted);
+      doc.text(`Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, margin, yPos);
+      
+      // ===============================
+      // FRANCHISE DETAIL PAGES
+      // ===============================
+      items.forEach((item, index) => {
+        doc.addPage();
+        let y = margin;
+        
+        // Franchise Header
+        doc.setFillColor(...colors.primary);
+        doc.rect(0, 0, pageWidth, 70, 'F');
+        
+        doc.setFontSize(22);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.text(item.franchise_name, margin, 35);
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.text(item.overview?.industry || 'Uncategorized', margin, 52);
+        
+        // Page number indicator
+        doc.setFontSize(10);
+        doc.text(`${index + 1} of ${items.length}`, pageWidth - margin - 50, 35, { align: 'right' });
+        
+        y = 90;
+        
+        // Verdict Box
+        doc.setFillColor(238, 242, 255); // Indigo-50
+        doc.roundedRect(margin, y, contentWidth, 45, 6, 6, 'F');
+        doc.setDrawColor(...colors.primary);
+        doc.setLineWidth(1);
+        doc.roundedRect(margin, y, contentWidth, 45, 6, 6, 'S');
+        
+        doc.setFontSize(10);
+        doc.setTextColor(...colors.primary);
+        doc.setFont('helvetica', 'italic');
+        const verdictLines = doc.splitTextToSize(`"${item.verdict}"`, contentWidth - 30);
+        doc.text(verdictLines, margin + 15, y + 20);
+        
+        y += 60;
+        
+        // ---- OVERVIEW TABLE ----
+        doc.setFontSize(12);
+        doc.setTextColor(...colors.text);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Overview', margin, y);
+        y += 15;
+        
+        (doc as any).autoTable({
+          startY: y,
+          body: [
+            ['Year Started', item.overview?.year_started?.toString() || 'N/A'],
+            ['Year Franchised', item.overview?.year_franchised?.toString() || 'N/A'],
+            ['Operating Franchises', item.overview?.operating_franchises || 'N/A']
+          ],
+          margin: { left: margin, right: margin },
+          theme: 'plain',
+          bodyStyles: { fontSize: 9, textColor: colors.text, cellPadding: 6 },
+          columnStyles: {
+            0: { cellWidth: 140, fontStyle: 'bold', textColor: colors.secondary },
+            1: { cellWidth: contentWidth - 140 }
+          }
+        });
+        
+        y = (doc as any).lastAutoTable.finalY + 15;
+        
+        // ---- FINANCIALS TABLE ----
+        doc.setFontSize(12);
+        doc.setTextColor(...colors.text);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Financials (The "Wallet")', margin, y);
+        
+        // Fit indicator
+        const fitColor = item.money.traffic_light === 'green' ? colors.success : 
+                         item.money.traffic_light === 'yellow' ? colors.warning : colors.danger;
+        const fitText = item.money.traffic_light === 'green' ? 'Good Fit' : 
+                        item.money.traffic_light === 'yellow' ? 'Caution' : 'Mismatch';
+        doc.setFillColor(...fitColor);
+        doc.roundedRect(pageWidth - margin - 70, y - 12, 70, 18, 4, 4, 'F');
+        doc.setFontSize(9);
+        doc.setTextColor(255, 255, 255);
+        doc.text(fitText, pageWidth - margin - 35, y - 1, { align: 'center' });
+        
+        y += 15;
+        
+        (doc as any).autoTable({
+          startY: y,
+          body: [
+            ['Total Investment', item.money.investment_range],
+            ['Required Liquidity', item.money.liquidity_req ? `$${item.money.liquidity_req.toLocaleString()}` : 'N/A'],
+            ['Net Worth Requirement', item.money.net_worth_req ? `$${item.money.net_worth_req.toLocaleString()}` : 'N/A'],
+            ['Royalty', item.money.royalty || 'N/A'],
+            ['SBA Registered', item.money.sba_registered ? 'Yes' : 'No'],
+            ['In-House Financing', item.money.in_house_financing || 'N/A'],
+            ['Financial Model', item.money.financial_model],
+            ['Overhead Level', item.money.overhead_level]
+          ],
+          margin: { left: margin, right: margin },
+          theme: 'striped',
+          headStyles: { fillColor: colors.headerBg, textColor: colors.text },
+          bodyStyles: { fontSize: 9, textColor: colors.text, cellPadding: 5 },
+          alternateRowStyles: { fillColor: [250, 250, 250] },
+          columnStyles: {
+            0: { cellWidth: 140, fontStyle: 'bold', textColor: colors.secondary },
+            1: { cellWidth: contentWidth - 140 }
+          }
+        });
+        
+        y = (doc as any).lastAutoTable.finalY + 15;
+        
+        // ---- MOTIVES TABLE ----
+        doc.setFontSize(12);
+        doc.setTextColor(...colors.text);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Growth & Stability (The "Motives")', margin, y);
+        y += 15;
+        
+        (doc as any).autoTable({
+          startY: y,
+          body: [
+            ['Recession Resistance', item.motives.recession_resistance],
+            ['Scalability', item.motives.scalability],
+            ['Market Demand', item.motives.market_demand],
+            ['Passive Income Potential', item.motives.passive_income_potential]
+          ],
+          margin: { left: margin, right: margin },
+          theme: 'striped',
+          bodyStyles: { fontSize: 9, textColor: colors.text, cellPadding: 5 },
+          alternateRowStyles: { fillColor: [250, 250, 250] },
+          columnStyles: {
+            0: { cellWidth: 140, fontStyle: 'bold', textColor: colors.secondary },
+            1: { cellWidth: contentWidth - 140 }
+          }
+        });
+        
+        y = (doc as any).lastAutoTable.finalY + 15;
+        
+        // ---- OPERATIONS TABLE ----
+        doc.setFontSize(12);
+        doc.setTextColor(...colors.text);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Operations (The "Life")', margin, y);
+        
+        // Role Fit indicator
+        const roleFitColor = item.interest.traffic_light === 'green' ? colors.success : 
+                             item.interest.traffic_light === 'yellow' ? colors.warning : colors.danger;
+        const roleFitText = item.interest.traffic_light === 'green' ? 'Good Fit' : 
+                            item.interest.traffic_light === 'yellow' ? 'Caution' : 'Mismatch';
+        doc.setFillColor(...roleFitColor);
+        doc.roundedRect(pageWidth - margin - 70, y - 12, 70, 18, 4, 4, 'F');
+        doc.setFontSize(9);
+        doc.setTextColor(255, 255, 255);
+        doc.text(roleFitText, pageWidth - margin - 35, y - 1, { align: 'center' });
+        
+        y += 15;
+        
+        (doc as any).autoTable({
+          startY: y,
+          body: [
+            ['Role Type', item.interest.role],
+            ['Sales Model', item.interest.sales_requirement],
+            ['Employees', item.interest.employees_count],
+            ['Inventory Level', item.interest.inventory_level]
+          ],
+          margin: { left: margin, right: margin },
+          theme: 'striped',
+          bodyStyles: { fontSize: 9, textColor: colors.text, cellPadding: 5 },
+          alternateRowStyles: { fillColor: [250, 250, 250] },
+          columnStyles: {
+            0: { cellWidth: 140, fontStyle: 'bold', textColor: colors.secondary },
+            1: { cellWidth: contentWidth - 140 }
+          }
+        });
+        
+        y = (doc as any).lastAutoTable.finalY + 15;
+        
+        // ---- TERRITORY TABLE ----
+        doc.setFontSize(12);
+        doc.setTextColor(...colors.text);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Territory (The "Empire")', margin, y);
+        y += 15;
+        
+        const unavailableStates = item.territories?.unavailable_states?.length 
+          ? item.territories.unavailable_states.join(', ') 
+          : 'All states available';
+        
+        (doc as any).autoTable({
+          startY: y,
+          body: [
+            ['Availability Status', item.territories.availability_status],
+            ['Unavailable States', unavailableStates]
+          ],
+          margin: { left: margin, right: margin },
+          theme: 'striped',
+          bodyStyles: { fontSize: 9, textColor: colors.text, cellPadding: 5 },
+          alternateRowStyles: { fillColor: [250, 250, 250] },
+          columnStyles: {
+            0: { cellWidth: 140, fontStyle: 'bold', textColor: colors.secondary },
+            1: { cellWidth: contentWidth - 140 }
+          }
+        });
+        
+        y = (doc as any).lastAutoTable.finalY + 15;
+        
+        // ---- VALUE PROPOSITION ----
+        // Check if we need a new page
+        if (y > pageHeight - 200) {
+          doc.addPage();
+          y = margin;
+        }
+        
+        doc.setFontSize(12);
+        doc.setTextColor(...colors.text);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Value Proposition', margin, y);
+        y += 15;
+        
+        // Why This Franchise (bullet points)
+        const whyItems = parseContentToArray(item.value?.why_franchise);
+        if (whyItems.length > 0) {
+          doc.setFontSize(10);
+          doc.setTextColor(...colors.secondary);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Why This Franchise:', margin, y);
+          y += 12;
+          
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...colors.text);
+          doc.setFontSize(9);
+          
+          whyItems.forEach(point => {
+            const bulletLines = doc.splitTextToSize(`• ${point}`, contentWidth - 20);
+            bulletLines.forEach((line: string) => {
+              if (y > pageHeight - 50) {
+                doc.addPage();
+                y = margin;
+              }
+              doc.text(line, margin + 10, y);
+              y += 12;
+            });
+          });
+          
+          y += 5;
+        }
+        
+        // Description
+        if (item.value?.value_proposition) {
+          doc.setFontSize(10);
+          doc.setTextColor(...colors.secondary);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Description:', margin, y);
+          y += 12;
+          
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...colors.text);
+          doc.setFontSize(9);
+          
+          const descLines = doc.splitTextToSize(item.value.value_proposition, contentWidth - 20);
+          descLines.forEach((line: string) => {
+            if (y > pageHeight - 50) {
+              doc.addPage();
+              y = margin;
+            }
+            doc.text(line, margin + 10, y);
+            y += 12;
+          });
+        }
+      });
+      
+      // ===============================
+      // ADD PAGE NUMBERS TO ALL PAGES
+      // ===============================
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(9);
+        doc.setTextColor(...colors.muted);
+        doc.text(
+          `Page ${i} of ${pageCount}`,
+          pageWidth / 2,
+          pageHeight - 20,
+          { align: 'center' }
+        );
       }
+      
+      // Save the PDF
+      doc.save(filename);
+      
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      // Fallback to browser print dialog
-      const userChoice = confirm('PDF export failed due to CSS compatibility. Would you like to use the browser\'s print dialog instead?\n\nTip: Select "Save as PDF" in the print dialog.');
-      if (userChoice) {
-        window.print();
-      }
+      alert('Failed to export PDF. Please try again.');
     } finally {
       setIsExporting(false);
     }
