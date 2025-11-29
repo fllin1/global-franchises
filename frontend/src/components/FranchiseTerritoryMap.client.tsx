@@ -2,7 +2,17 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { ListFilter, Loader2, ChevronRight, Home, Map as MapIcon, Building2, MapPin } from 'lucide-react';
-import { fetchStatesBoundaries, fetchCountyBoundaries, getStateCodeFromFeature, getFeatureBounds, STATE_NAMES } from '@/lib/geo';
+import { 
+    fetchStatesBoundaries, 
+    fetchCountyBoundaries, 
+    fetchCityBoundaries,
+    fetchZipBoundaries,
+    getStateCodeFromFeature, 
+    getFeatureBounds, 
+    findCountyFeature,
+    findCityFeature,
+    STATE_NAMES 
+} from '@/lib/geo';
 import type { Feature, FeatureCollection } from 'geojson';
 
 interface TerritoryCheck {
@@ -19,10 +29,17 @@ interface TerritoryCheck {
 }
 
 // 4-level hierarchy: State -> County -> City -> TerritoryCheck[]
+// Availability is calculated bottom-up:
+// - Zip level: ALL checks must be unavailable for the zip to be unavailable
+// - City level: ALL zips must be unavailable for the city to be unavailable
+// - County level: ALL cities must be unavailable for the county to be unavailable
+// - State level: ALL counties must be unavailable OR state is in unavailable_states
 interface TerritoryData {
     franchise_id: number;
     territory_count: number;
     states: Record<string, Record<string, Record<string, TerritoryCheck[]>>>;
+    /** Array of state codes that are explicitly marked as unavailable at the franchise level */
+    unavailable_states?: string[];
 }
 
 interface BreadcrumbItem {
@@ -58,6 +75,8 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
     // GeoJSON data
     const [statesGeo, setStatesGeo] = useState<FeatureCollection | null>(null);
     const [countiesGeo, setCountiesGeo] = useState<FeatureCollection | null>(null);
+    const [citiesGeo, setCitiesGeo] = useState<FeatureCollection | null>(null);
+    const [zipsGeo, setZipsGeo] = useState<FeatureCollection | null>(null);
     const [geoLoading, setGeoLoading] = useState(false);
     
     // Refs for imperative map management
@@ -118,60 +137,202 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         }
     }, [selectedState, selectedCounty]);
 
-    // Calculate availability status for a state
-    const getStateAvailability = useCallback((stateCode: string): AvailabilityStatus => {
-        if (!data?.states?.[stateCode]) return 'neutral';
-        
-        let hasAvailable = false;
-        let hasUnavailable = false;
-        
-        try {
-            const stateData = data.states[stateCode];
-            Object.values(stateData).forEach(countyData => {
-                if (typeof countyData !== 'object' || countyData === null) return;
-                Object.values(countyData).forEach(cityChecks => {
-                    if (!Array.isArray(cityChecks)) return;
-                    cityChecks.forEach(check => {
-                        if (check.availability_status === 'Available') hasAvailable = true;
-                        else hasUnavailable = true;
-                    });
-                });
-            });
-        } catch (e) {
-            return 'neutral';
+    // Load city GeoJSON when county is selected
+    useEffect(() => {
+        if (selectedState && selectedCounty && !selectedCity) {
+            setGeoLoading(true);
+            fetchCityBoundaries(selectedState)
+                .then(setCitiesGeo)
+                .catch(err => console.error(`Failed to load cities for ${selectedState}:`, err))
+                .finally(() => setGeoLoading(false));
+        } else if (!selectedCounty) {
+            setCitiesGeo(null);
         }
-        
-        if (hasAvailable && hasUnavailable) return 'mixed';
-        if (hasAvailable) return 'available';
-        if (hasUnavailable) return 'unavailable';
-        return 'neutral';
-    }, [data]);
+    }, [selectedState, selectedCounty, selectedCity]);
 
-    // Calculate availability status for a county
+    // Load ZIP GeoJSON when city is selected
+    useEffect(() => {
+        if (selectedState && selectedCity && !selectedZip) {
+            setGeoLoading(true);
+            fetchZipBoundaries(selectedState)
+                .then(setZipsGeo)
+                .catch(err => console.error(`Failed to load ZIPs for ${selectedState}:`, err))
+                .finally(() => setGeoLoading(false));
+        } else if (!selectedCity) {
+            setZipsGeo(null);
+        }
+    }, [selectedState, selectedCity, selectedZip]);
+
+    // ==========================================
+    // Bottom-Up Availability Calculation
+    // ==========================================
+    // The hierarchy is: State -> County -> City -> Zip -> TerritoryCheck
+    // 
+    // KEY PRINCIPLE: "No data" = "Available" (shown as green on map)
+    // 
+    // Rules:
+    // - A level is "unavailable" ONLY if EXPLICITLY marked unavailable
+    //   (e.g., state in unavailable_states, or state-level territory check)
+    // - When aggregating from partial data (we don't have data for all sub-areas):
+    //   - If ALL data is "available" → "available"
+    //   - If ANY data is "unavailable" → "mixed" (because areas without data = available)
+    //   - This ensures visual consistency: unavailable areas (red) + no-data areas (green) = mixed
+    // ==========================================
+
+    /**
+     * Calculate availability for a specific zip code within a city.
+     * A zip is unavailable only if ALL checks for that zip are unavailable.
+     * Note: At zip level, we have actual check data, so we can determine true availability.
+     */
+    const getZipAvailability = useCallback((checks: TerritoryCheck[]): AvailabilityStatus => {
+        if (!checks || checks.length === 0) return 'available';
+        
+        const availableCount = checks.filter(c => c.availability_status === 'Available').length;
+        const unavailableCount = checks.length - availableCount;
+        
+        if (unavailableCount === checks.length) return 'unavailable';
+        if (availableCount === checks.length) return 'available';
+        return 'mixed';
+    }, []);
+
+    /**
+     * Calculate availability for a city by aggregating from its zip codes.
+     * 
+     * IMPORTANT: We only have data for SOME zips in a city. Other zips without data
+     * would display as "available" on the map. So:
+     * - If all zips WITH data are unavailable → "mixed" (because other zips = available)
+     * - If all zips WITH data are available → "available"
+     * - If mixed data → "mixed"
+     */
+    const getCityAvailability = useCallback((stateCode: string, county: string, city: string): AvailabilityStatus => {
+        const cityChecks = data?.states?.[stateCode]?.[county]?.[city];
+        if (!cityChecks || !Array.isArray(cityChecks) || cityChecks.length === 0) return 'available';
+        
+        // Group checks by zip code
+        const zipGroups = new Map<string | null, TerritoryCheck[]>();
+        cityChecks.forEach(check => {
+            const zip = check.zip_code;
+            if (!zipGroups.has(zip)) {
+                zipGroups.set(zip, []);
+            }
+            zipGroups.get(zip)!.push(check);
+        });
+        
+        // Calculate availability for each zip
+        const zipStatuses: AvailabilityStatus[] = [];
+        zipGroups.forEach(checks => {
+            zipStatuses.push(getZipAvailability(checks));
+        });
+        
+        // Aggregate from zips
+        const allAvailable = zipStatuses.every(s => s === 'available');
+        const hasAnyUnavailable = zipStatuses.some(s => s === 'unavailable' || s === 'mixed');
+        
+        // If all data is available, city is available
+        if (allAvailable) return 'available';
+        
+        // If any data shows unavailable/mixed, city is mixed
+        // (because there could be other zips without data that would show as available)
+        if (hasAnyUnavailable) return 'mixed';
+        
+        return 'available';
+    }, [data, getZipAvailability]);
+
+    /**
+     * Calculate availability for a county by aggregating from its cities.
+     * 
+     * IMPORTANT: We only have data for SOME cities in a county. Other cities without data
+     * would display as "available" on the map. So:
+     * - If all cities WITH data are unavailable → "mixed" (because other cities = available)
+     * - If all cities WITH data are available → "available"
+     * - If mixed data → "mixed"
+     */
     const getCountyAvailability = useCallback((stateCode: string, county: string): AvailabilityStatus => {
-        if (!data?.states?.[stateCode]?.[county]) return 'neutral';
+        const countyData = data?.states?.[stateCode]?.[county];
+        if (!countyData || typeof countyData !== 'object') return 'available';
         
-        let hasAvailable = false;
-        let hasUnavailable = false;
+        const cities = Object.keys(countyData);
+        if (cities.length === 0) return 'available';
         
-        try {
-            const countyData = data.states[stateCode][county];
-            Object.values(countyData).forEach(cityChecks => {
-                if (!Array.isArray(cityChecks)) return;
-                cityChecks.forEach(check => {
-                    if (check.availability_status === 'Available') hasAvailable = true;
-                    else hasUnavailable = true;
-                });
-            });
-        } catch (e) {
-            return 'neutral';
+        // Calculate availability for each city
+        const cityStatuses: AvailabilityStatus[] = cities.map(city => 
+            getCityAvailability(stateCode, county, city)
+        );
+        
+        // Aggregate from cities
+        const allAvailable = cityStatuses.every(s => s === 'available');
+        const hasAnyUnavailable = cityStatuses.some(s => s === 'unavailable' || s === 'mixed');
+        
+        // If all data is available, county is available
+        if (allAvailable) return 'available';
+        
+        // If any data shows unavailable/mixed, county is mixed
+        // (because there could be other cities without data that would show as available)
+        if (hasAnyUnavailable) return 'mixed';
+        
+        return 'available';
+    }, [data, getCityAvailability]);
+
+    /**
+     * Calculate availability for a state by aggregating from its counties.
+     * 
+     * A state is "unavailable" ONLY if:
+     * 1. It's EXPLICITLY in the franchise's unavailable_states array, OR
+     * 2. There's a state-level territory check (no county/city) marking it unavailable
+     * 
+     * For aggregated data from counties:
+     * - If all counties WITH data are unavailable → "mixed" (other counties = available)
+     * - If all counties WITH data are available → "available"
+     * - If mixed data → "mixed"
+     */
+    const getStateAvailability = useCallback((stateCode: string): AvailabilityStatus => {
+        // Check if state is EXPLICITLY marked as unavailable at franchise level
+        if (data?.unavailable_states?.includes(stateCode)) {
+            return 'unavailable';
         }
         
-        if (hasAvailable && hasUnavailable) return 'mixed';
-        if (hasAvailable) return 'available';
-        if (hasUnavailable) return 'unavailable';
-        return 'neutral';
-    }, [data]);
+        const stateData = data?.states?.[stateCode];
+        if (!stateData || typeof stateData !== 'object') return 'available';
+        
+        const counties = Object.keys(stateData);
+        if (counties.length === 0) return 'available';
+        
+        // Check for state-level territory check (county is "Unspecified County" with no real cities)
+        // This handles cases where a territory check EXPLICITLY marks the whole state as unavailable
+        if (counties.length === 1 && counties[0] === UNSPECIFIED_COUNTY) {
+            const unspecifiedCountyData = stateData[UNSPECIFIED_COUNTY];
+            const cities = Object.keys(unspecifiedCountyData);
+            if (cities.length === 1 && cities[0] === 'Unspecified Area') {
+                const checks = unspecifiedCountyData['Unspecified Area'];
+                if (Array.isArray(checks) && checks.length > 0) {
+                    // This is an explicit state-level check - use actual status
+                    const allUnavailable = checks.every(c => c.availability_status !== 'Available');
+                    if (allUnavailable) return 'unavailable';
+                    const allAvailable = checks.every(c => c.availability_status === 'Available');
+                    if (allAvailable) return 'available';
+                    return 'mixed';
+                }
+            }
+        }
+        
+        // Calculate availability for each county
+        const countyStatuses: AvailabilityStatus[] = counties.map(county => 
+            getCountyAvailability(stateCode, county)
+        );
+        
+        // Aggregate from counties
+        const allAvailable = countyStatuses.every(s => s === 'available');
+        const hasAnyUnavailable = countyStatuses.some(s => s === 'unavailable' || s === 'mixed');
+        
+        // If all data is available, state is available
+        if (allAvailable) return 'available';
+        
+        // If any data shows unavailable/mixed, state is mixed
+        // (because there are other counties without data that would show as available)
+        if (hasAnyUnavailable) return 'mixed';
+        
+        return 'available';
+    }, [data, getCountyAvailability]);
 
     // Count checks in a state (defensive - handles malformed data)
     const getStateCheckCount = useCallback((state: string): number => {
@@ -471,7 +632,7 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
             if (!stateCode) return;
             
             const hasData = statesWithData.includes(stateCode);
-            const availability = hasData ? getStateAvailability(stateCode) : 'neutral';
+            const availability = hasData ? getStateAvailability(stateCode) : 'available';
             const isHovered = hoveredItem === stateCode;
             
             const layer = L.geoJSON(feature, {
@@ -530,7 +691,7 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
                     countyName.toLowerCase().replace(/\s+county$/i, '').trim()
                 );
                 
-                const availability = matchingCounty ? getCountyAvailability(selectedState, matchingCounty) : 'neutral';
+                const availability = matchingCounty ? getCountyAvailability(selectedState, matchingCounty) : 'available';
                 const isHovered = hoveredItem === countyName;
                 
                 const layer = L.geoJSON(feature, {
@@ -609,40 +770,238 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         }
     }, [viewLevel, selectedState, countiesGeo, L, getCountiesInState, getCountyAvailability, getPolygonStyle, hoveredItem, handleCountySelect, filteredList, getCountyCheckCount]);
 
-    // Render city markers
+    // Get cities with data in the selected county
+    const citiesWithData = useMemo(() => {
+        if (!selectedState || !selectedCounty || !data?.states?.[selectedState]?.[selectedCounty]) return [];
+        return Object.keys(data.states[selectedState][selectedCounty]);
+    }, [selectedState, selectedCounty, data]);
+
+    // Get ZIPs with data in the selected city
+    const zipsWithData = useMemo(() => {
+        if (!selectedState || !selectedCounty || !selectedCity) return [];
+        const cityChecks = data?.states?.[selectedState]?.[selectedCounty]?.[selectedCity] || [];
+        return [...new Set(cityChecks.map(c => c.zip_code).filter(Boolean))] as string[];
+    }, [selectedState, selectedCounty, selectedCity, data]);
+
+    // Render city polygons when county is selected
     useEffect(() => {
-        if (!mapRef.current || !markersLayerRef.current || !L) return;
-        if (viewLevel !== 'cities' && viewLevel !== 'zips') return;
+        if (!mapRef.current || !geoLayerRef.current || !L) return;
+        if (viewLevel !== 'cities') return;
+        if (!selectedState || !selectedCounty) return;
         
-        geoLayerRef.current?.clearLayers();
-        markersLayerRef.current.clearLayers();
+        geoLayerRef.current.clearLayers();
+        markersLayerRef.current?.clearLayers();
         featureLayersRef.current.clear();
         
-        const checksWithCoords = filteredList.filter(c => c.latitude && c.longitude);
+        const cities = getCitiesInCounty(selectedState, selectedCounty);
         
+        // If we have city GeoJSON, render polygons
+        if (citiesGeo && citiesGeo.features.length > 0) {
+            // Get selected county bounds for proper zoom
+            let countyBounds: any = null;
+            if (countiesGeo) {
+                const countyFeature = findCountyFeature(countiesGeo, selectedCounty);
+                if (countyFeature) {
+                    const featureBounds = getFeatureBounds(countyFeature);
+                    if (featureBounds) {
+                        countyBounds = L.latLngBounds(featureBounds);
+                    }
+                }
+            }
+            
+            // Render city polygons
+            citiesGeo.features.forEach(feature => {
+                const cityName = feature.properties?.NAME || feature.properties?.name || 'Unknown';
+                const matchingCity = cities.find(c => 
+                    c.toLowerCase().trim() === cityName.toLowerCase().trim()
+                );
+                
+                // Only render cities that are in our data OR are within the county bounds
+                const hasTerritoryData = matchingCity !== undefined;
+                const availability = hasTerritoryData ? getCityAvailability(selectedState, selectedCounty, matchingCity!) : 'available';
+                const isHovered = hoveredItem === cityName || hoveredItem === matchingCity;
+                
+                const layer = L.geoJSON(feature, {
+                    style: getPolygonStyle(availability, isHovered),
+                    onEachFeature: (_feat: Feature, lyr: any) => {
+                        const checkCount = matchingCity ? getCityCheckCount(selectedState, selectedCounty, matchingCity) : 0;
+                        lyr.bindTooltip(`<strong>${cityName}</strong><br/>${checkCount} checks`, {
+                            sticky: true
+                        });
+                        
+                        lyr.on('mouseover', () => {
+                            if (matchingCity) setHoveredItem(matchingCity);
+                            else setHoveredItem(cityName);
+                        });
+                        
+                        lyr.on('mouseout', () => {
+                            setHoveredItem(null);
+                        });
+                        
+                        lyr.on('click', () => {
+                            if (matchingCity) {
+                                handleCitySelect(matchingCity);
+                            }
+                        });
+                    }
+                });
+                
+                if (matchingCity) {
+                    featureLayersRef.current.set(matchingCity, layer);
+                }
+                geoLayerRef.current.addLayer(layer);
+            });
+            
+            // Fit to county bounds for better context, or fall back to geo layer bounds
+            if (countyBounds && countyBounds.isValid()) {
+                mapRef.current.fitBounds(countyBounds, { padding: [30, 30] });
+            } else {
+                try {
+                    const bounds = geoLayerRef.current.getBounds();
+                    if (bounds && bounds.isValid()) {
+                        mapRef.current.fitBounds(bounds, { padding: [30, 30] });
+                    }
+                } catch (e) {
+                    console.warn('Could not fit to city bounds:', e);
+                }
+            }
+        } else {
+            // Fallback: Show city markers if no GeoJSON available
+        const checksWithCoords = filteredList.filter(c => c.latitude && c.longitude);
+            checksWithCoords.forEach(check => {
+                const isAvailable = check.availability_status === 'Available';
+                const marker = L.circleMarker([check.latitude!, check.longitude!], {
+                    radius: 10,
+                    fillColor: isAvailable ? '#10b981' : '#f43f5e',
+                    color: isAvailable ? '#059669' : '#e11d48',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.7
+                });
+                
+                marker.bindTooltip(`<strong>${check.city || 'Unknown'}</strong><br/>${check.availability_status}`, {
+                    sticky: true
+                });
+                
+                marker.on('click', () => {
+                    if (check.city) handleCitySelect(check.city);
+                });
+                
+                markersLayerRef.current.addLayer(marker);
+            });
+            
+            if (checksWithCoords.length > 0) {
+                const bounds = L.latLngBounds(checksWithCoords.map(c => [c.latitude!, c.longitude!]));
+                mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+    }, [viewLevel, selectedState, selectedCounty, citiesGeo, countiesGeo, L, getCitiesInCounty, getCityAvailability, getPolygonStyle, hoveredItem, handleCitySelect, filteredList, getCityCheckCount]);
+
+    // Render ZIP polygons when city is selected
+    useEffect(() => {
+        if (!mapRef.current || !geoLayerRef.current || !L) return;
+        if (viewLevel !== 'zips') return;
+        if (!selectedState || !selectedCity) return;
+        
+        geoLayerRef.current.clearLayers();
+        markersLayerRef.current?.clearLayers();
+        featureLayersRef.current.clear();
+        
+        // If we have ZIP GeoJSON, render polygons
+        if (zipsGeo && zipsGeo.features.length > 0 && zipsWithData.length > 0) {
+            // Get city feature bounds for proper zoom
+            let cityBounds: any = null;
+            if (citiesGeo) {
+                const cityFeature = findCityFeature(citiesGeo, selectedCity);
+                if (cityFeature) {
+                    const featureBounds = getFeatureBounds(cityFeature);
+                    if (featureBounds) {
+                        cityBounds = L.latLngBounds(featureBounds);
+                    }
+                }
+            }
+            
+            // Only render ZIPs that have territory data
+            const zipsSet = new Set(zipsWithData);
+            let hasRenderedZips = false;
+            
+            zipsGeo.features.forEach(feature => {
+                const zipCode = feature.properties?.ZCTA5 || feature.properties?.GEOID || '';
+                
+                if (!zipsSet.has(zipCode)) return; // Skip ZIPs without data
+                
+                hasRenderedZips = true;
+                const zipChecks = filteredList.filter(c => c.zip_code === zipCode);
+                const availability = getZipAvailability(zipChecks);
+                const isHovered = hoveredItem === zipCode;
+                
+                const layer = L.geoJSON(feature, {
+                    style: getPolygonStyle(availability, isHovered),
+                    onEachFeature: (_feat: Feature, lyr: any) => {
+                        lyr.bindTooltip(`<strong>ZIP ${zipCode}</strong><br/>${zipChecks.length} checks`, {
+                            sticky: true
+                        });
+                        
+                        lyr.on('mouseover', () => {
+                            setHoveredItem(zipCode);
+                        });
+                        
+                        lyr.on('mouseout', () => {
+                            setHoveredItem(null);
+                        });
+                        
+                        lyr.on('click', () => {
+                            setSelectedZip(zipCode);
+                        });
+                    }
+                });
+                
+                featureLayersRef.current.set(zipCode, layer);
+                geoLayerRef.current.addLayer(layer);
+            });
+            
+            // Fit bounds
+            if (hasRenderedZips) {
+                try {
+                    const bounds = geoLayerRef.current.getBounds();
+                    if (bounds && bounds.isValid()) {
+                        mapRef.current.fitBounds(bounds, { padding: [40, 40] });
+                    }
+                } catch (e) {
+                    // Fall back to city bounds
+                    if (cityBounds && cityBounds.isValid()) {
+                        mapRef.current.fitBounds(cityBounds, { padding: [30, 30] });
+                    }
+                }
+            } else if (cityBounds && cityBounds.isValid()) {
+                mapRef.current.fitBounds(cityBounds, { padding: [30, 30] });
+            }
+        }
+        
+        // Always add point markers for ZIP checks (even if we have polygons, for precision)
+        const checksWithCoords = filteredList.filter(c => c.latitude && c.longitude);
         checksWithCoords.forEach(check => {
             const isAvailable = check.availability_status === 'Available';
-            const isHovered = hoveredItem === check.city || hoveredItem === check.zip_code;
+            const isHovered = hoveredItem === check.zip_code;
             
             const marker = L.circleMarker([check.latitude!, check.longitude!], {
-                radius: isHovered ? 12 : 8,
+                radius: isHovered ? 10 : 6,
                 fillColor: isAvailable ? '#10b981' : '#f43f5e',
-                color: isAvailable ? '#059669' : '#e11d48',
-                weight: isHovered ? 3 : 2,
+                color: '#ffffff',
+                weight: 2,
                 opacity: 1,
-                fillOpacity: isHovered ? 0.9 : 0.7
+                fillOpacity: 0.9
             });
             
             const tooltipContent = `
                 <strong>${check.city || 'Unknown'}</strong><br/>
-                ${check.county ? `${check.county}<br/>` : ''}
                 ${check.zip_code ? `ZIP: ${check.zip_code}<br/>` : ''}
                 <span style="color: ${isAvailable ? '#10b981' : '#f43f5e'}">${check.availability_status}</span>
             `;
             marker.bindTooltip(tooltipContent, { sticky: true });
             
             marker.on('mouseover', () => {
-                setHoveredItem(check.city || check.zip_code || null);
+                setHoveredItem(check.zip_code || null);
             });
             
             marker.on('mouseout', () => {
@@ -650,43 +1009,20 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
             });
             
             marker.on('click', () => {
-                if (check.city && !selectedCity) {
-                    handleCitySelect(check.city);
-                } else if (check.zip_code) {
+                if (check.zip_code) {
                     setSelectedZip(check.zip_code);
                 }
             });
             
-            // Store by city or zip for hover sync
-            if (check.city) {
-                featureLayersRef.current.set(check.city, marker);
-            }
-            if (check.zip_code) {
-                featureLayersRef.current.set(check.zip_code, marker);
-            }
-            
             markersLayerRef.current.addLayer(marker);
-            
-            // Add radius circle if specified
-            if (check.radius_miles) {
-                const circle = L.circle([check.latitude!, check.longitude!], {
-                    radius: check.radius_miles * 1609.34,
-                    fillColor: isAvailable ? '#10b981' : '#f43f5e',
-                    color: isAvailable ? '#059669' : '#e11d48',
-                    weight: 1,
-                    opacity: 0.3,
-                    fillOpacity: 0.1
-                });
-                markersLayerRef.current.addLayer(circle);
-            }
         });
         
-        // Fit bounds
-        if (checksWithCoords.length > 0) {
+        // If no ZIP polygons rendered, fit to marker bounds
+        if ((!zipsGeo || zipsGeo.features.length === 0) && checksWithCoords.length > 0) {
             const bounds = L.latLngBounds(checksWithCoords.map(c => [c.latitude!, c.longitude!]));
             mapRef.current.fitBounds(bounds, { padding: [50, 50] });
         }
-    }, [viewLevel, filteredList, L, hoveredItem, selectedCity, handleCitySelect]);
+    }, [viewLevel, selectedState, selectedCity, zipsGeo, citiesGeo, zipsWithData, L, filteredList, getZipAvailability, getPolygonStyle, hoveredItem]);
 
     // Update hover state on map when sidebar hover changes
     useEffect(() => {
@@ -694,10 +1030,18 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         
         const layer = featureLayersRef.current.get(hoveredItem);
         if (layer && layer.setStyle) {
-            // For GeoJSON layers
-            const status = viewLevel === 'states' 
-                ? (statesWithData.includes(hoveredItem) ? getStateAvailability(hoveredItem) : 'neutral')
-                : (selectedState ? getCountyAvailability(selectedState, hoveredItem) : 'neutral');
+            // For GeoJSON layers - determine status based on view level
+            let status: AvailabilityStatus = 'neutral';
+            if (viewLevel === 'states') {
+                status = statesWithData.includes(hoveredItem) ? getStateAvailability(hoveredItem) : 'neutral';
+            } else if (viewLevel === 'counties' && selectedState) {
+                status = getCountyAvailability(selectedState, hoveredItem);
+            } else if (viewLevel === 'cities' && selectedState && selectedCounty) {
+                status = getCityAvailability(selectedState, selectedCounty, hoveredItem);
+            } else if (viewLevel === 'zips') {
+                const zipChecks = filteredList.filter(c => c.zip_code === hoveredItem);
+                status = getZipAvailability(zipChecks);
+            }
             layer.setStyle(getPolygonStyle(status, true));
         } else if (layer && layer.setRadius) {
             // For circle markers
@@ -706,15 +1050,23 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         
         return () => {
             if (layer && layer.setStyle) {
-                const status = viewLevel === 'states' 
-                    ? (statesWithData.includes(hoveredItem) ? getStateAvailability(hoveredItem) : 'neutral')
-                    : (selectedState ? getCountyAvailability(selectedState, hoveredItem) : 'neutral');
+                let status: AvailabilityStatus = 'neutral';
+                if (viewLevel === 'states') {
+                    status = statesWithData.includes(hoveredItem) ? getStateAvailability(hoveredItem) : 'neutral';
+                } else if (viewLevel === 'counties' && selectedState) {
+                    status = getCountyAvailability(selectedState, hoveredItem);
+                } else if (viewLevel === 'cities' && selectedState && selectedCounty) {
+                    status = getCityAvailability(selectedState, selectedCounty, hoveredItem);
+                } else if (viewLevel === 'zips') {
+                    const zipChecks = filteredList.filter(c => c.zip_code === hoveredItem);
+                    status = getZipAvailability(zipChecks);
+                }
                 layer.setStyle(getPolygonStyle(status, false));
             } else if (layer && layer.setRadius) {
                 layer.setRadius(8);
             }
         };
-    }, [hoveredItem, viewLevel, statesWithData, getStateAvailability, selectedState, getCountyAvailability, getPolygonStyle]);
+    }, [hoveredItem, viewLevel, statesWithData, getStateAvailability, selectedState, selectedCounty, getCountyAvailability, getCityAvailability, getZipAvailability, filteredList, getPolygonStyle]);
 
     // Sidebar title and subtitle
     const getSidebarTitle = () => {
@@ -810,10 +1162,8 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         if (!selectedCity) {
             const cities = getCitiesInCounty(selectedState, selectedCounty);
             return cities.map(city => {
-                const cityChecks = data?.states?.[selectedState]?.[selectedCounty]?.[city] || [];
-                const hasAvailable = cityChecks.some(c => c.availability_status === 'Available');
-                const hasUnavailable = cityChecks.some(c => c.availability_status !== 'Available');
-                const status: AvailabilityStatus = hasAvailable && hasUnavailable ? 'mixed' : hasAvailable ? 'available' : hasUnavailable ? 'unavailable' : 'neutral';
+                // Use the bottom-up getCityAvailability function
+                const status = getCityAvailability(selectedState, selectedCounty, city);
                 const colors = AVAILABILITY_COLORS[status];
                 const isHovered = hoveredItem === city;
                 
@@ -858,8 +1208,9 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
                     </button>
                     {availableZips.sort().map(zip => {
                         const zipChecks = filteredList.filter(c => c.zip_code === zip);
-                        const hasAvailable = zipChecks.some(c => c.availability_status === 'Available');
-                        const colors = AVAILABILITY_COLORS[hasAvailable ? 'available' : 'unavailable'];
+                        // Use bottom-up getZipAvailability function
+                        const status = getZipAvailability(zipChecks);
+                        const colors = AVAILABILITY_COLORS[status];
                         const isHovered = hoveredItem === zip;
                         
                         return (
@@ -1008,10 +1359,6 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: AVAILABILITY_COLORS.mixed.fill }}></div>
                                 <span>Mixed</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: AVAILABILITY_COLORS.neutral.fill }}></div>
-                                <span>No Data</span>
                             </div>
                         </div>
                     </div>

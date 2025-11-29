@@ -7,6 +7,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-29] - City and ZIP Boundary Polygons for Territory Map
+
+### Added
+- **City Boundary Download Script** (`scripts/download_city_geojson.py`):
+  - Downloads city/place boundaries from Census Bureau TIGERweb API.
+  - Fetches both Incorporated Places (Layer 4) and Census Designated Places (Layer 5).
+  - Saves to `frontend/public/geo/cities/{STATE}.geojson`.
+  - Includes geometry simplification to reduce file sizes.
+  - Supports downloading specific states via CLI arguments.
+
+- **ZIP Code Boundary Download Script** (`scripts/download_zip_geojson.py`):
+  - Downloads ZIP Code Tabulation Area (ZCTA) boundaries from Census Bureau TIGERweb API.
+  - Uses state bounding boxes for spatial filtering (ZCTAs cross state lines).
+  - Implements pagination for large states (500 records per request).
+  - Saves to `frontend/public/geo/zips/{STATE}.geojson`.
+  - Includes geometry simplification to reduce file sizes.
+
+- **Geographic Library Enhancements** (`frontend/src/lib/geo.ts`):
+  - Added `fetchCityBoundaries(stateCode)` function to load city GeoJSON from local files.
+  - Added `fetchZipBoundaries(stateCode)` function to load ZIP GeoJSON from local files.
+  - Added `findCityFeature(collection, cityName)` helper function.
+  - Added `findZipFeature(collection, zipCode)` helper function.
+  - Added `filterCitiesByNames(collection, cityNames)` utility function.
+  - Added `filterZipsByCode(collection, zipCodes)` utility function.
+
+- **City Polygon Rendering** (`FranchiseTerritoryMap.client.tsx`):
+  - When a county is selected, cities are now rendered as GeoJSON polygons instead of point markers.
+  - City boundaries are colored by availability status (green/red/mixed).
+  - Proper zoom to county bounds when drilling down.
+  - Fallback to point markers if city GeoJSON is not available.
+
+- **ZIP Polygon Rendering** (`FranchiseTerritoryMap.client.tsx`):
+  - When a city is selected, ZIPs with data are rendered as GeoJSON polygons.
+  - ZIP boundaries are colored by availability status.
+  - Point markers overlay ZIPs for precise location indication.
+  - Proper zoom to city/ZIP area bounds.
+
+### Changed
+- **Territory Map Component** (`FranchiseTerritoryMap.client.tsx`):
+  - Added state for `citiesGeo` and `zipsGeo` GeoJSON data.
+  - Added useEffects to load city/ZIP boundaries on navigation.
+  - Updated hover effect to handle city and ZIP polygon layers.
+  - Improved zoom behavior using polygon bounds instead of marker bounds.
+
+### Notes
+- City/ZIP boundary files are large (~2-10MB per state). Download only needed states using:
+  - `python scripts/download_city_geojson.py TX FL CA` (cities)
+  - `python scripts/download_zip_geojson.py TX FL CA` (ZIPs)
+- Currently downloaded: TX, FL, CA, NY, NJ, CT cities and CT, FL ZIPs.
+- Remaining states can be downloaded as needed.
+
+## [2025-11-29] - Hierarchical Territory Availability Logic
+
+### Changed
+- **Bottom-Up Availability Aggregation with Partial Data Handling**:
+  - Completely rewrote territory availability calculation in `FranchiseTerritoryMap.client.tsx` to use hierarchical bottom-up aggregation.
+  - **Key Principle**: "No data" = "Available" (shown as green on map). Areas without territory checks are implicitly available.
+  - **New Rules**:
+    - **Zip Level**: A zip is "unavailable" only if ALL territory checks for that zip are unavailable.
+    - **City Level**: If any zip WITH data is unavailable, city shows as "mixed" (because other zips without data = available).
+    - **County Level**: If any city WITH data is unavailable/mixed, county shows as "mixed" (because other cities without data = available).
+    - **State Level**: "unavailable" ONLY if explicitly marked in `unavailable_states` array OR via state-level territory check. Otherwise, if any county WITH data is unavailable/mixed, state shows as "mixed".
+  - **Rationale**: Since we only have partial territory check coverage, we can't assume an area is fully unavailable just because all our data says so. Other sub-areas without data would display as available, making the parent "mixed".
+  - Added `getZipAvailability()` function for base-level aggregation.
+  - Added `getCityAvailability()` function that aggregates from zips with partial data awareness.
+  - Refactored `getCountyAvailability()` to aggregate from cities with partial data awareness.
+  - Refactored `getStateAvailability()` to check explicit unavailability and aggregate from counties.
+  - Updated sidebar rendering to use the new `getCityAvailability()` and `getZipAvailability()` functions for consistent coloring.
+
+### Added
+- **Explicit Unavailable States Support**:
+  - Added `unavailable_states` field to `TerritoryData` interface in `frontend/src/types/index.ts`.
+  - Updated `/api/franchises/{id}/territories` endpoint in `src/backend/franchises.py` to fetch and return the franchise's `unavailable_states` array from the database.
+  - State availability now respects the franchise-level `unavailable_states` JSONB field.
+
+## [2025-11-29] - Default Territory Availability to Available
+
+### Changed
+- **Territory Map Default Availability**:
+  - Changed default territory availability status from "neutral" (gray/No Data) to "available" (green) when no territory check data exists for a state, county, or city.
+  - States, counties, and cities without explicit territory checks now display as "Available" by default.
+  - Updated `getStateAvailability()` and `getCountyAvailability()` functions in `FranchiseTerritoryMap.client.tsx` to return `'available'` instead of `'neutral'` when no data exists.
+  - Updated rendering logic for states, counties, and cities to use `'available'` as default status.
+  - Removed "No Data" entry from the map legend since all territories now default to available.
+
 ## [2025-11-29] - Local County GeoJSON Hosting
 
 ### Added

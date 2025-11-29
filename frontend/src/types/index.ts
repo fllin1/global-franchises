@@ -164,11 +164,19 @@ export interface TerritoryCheck {
  * 
  * When county is not available, "Unspecified County" is used as a placeholder.
  * This allows flexible navigation - skipping county when it's unspecified.
+ * 
+ * Availability is calculated bottom-up:
+ * - Zip level: ALL checks must be unavailable for the zip to be unavailable
+ * - City level: ALL zips must be unavailable for the city to be unavailable
+ * - County level: ALL cities must be unavailable for the county to be unavailable
+ * - State level: ALL counties must be unavailable OR state is in unavailable_states
  */
 export interface TerritoryData {
   franchise_id: number;
   territory_count: number;
   states: Record<string, Record<string, Record<string, TerritoryCheck[]>>>;
+  /** Array of state codes that are explicitly marked as unavailable at the franchise level */
+  unavailable_states?: string[];
 }
 
 export interface MarketGrowthStatistics {

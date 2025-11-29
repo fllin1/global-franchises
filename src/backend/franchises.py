@@ -52,9 +52,25 @@ async def get_franchise_territories(franchise_id: int):
     Returns hierarchy: State -> County -> City -> Territory Check details.
     
     The hierarchy is flexible - if county is not available, "Unspecified County" is used.
+    
+    Availability logic (bottom-up aggregation):
+    - State level: unavailable if ALL counties are unavailable OR state is in unavailable_states
+    - County level: unavailable if ALL cities are unavailable
+    - City level: unavailable if ALL zips are unavailable
+    - Zip level: unavailable if ALL checks are unavailable
     """
     try:
         logger.info(f"Fetching territory checks for Franchise ID: {franchise_id}")
+        
+        # Fetch franchise-level unavailable_states
+        franchise_response = supabase_client().table("franchises") \
+            .select("unavailable_states") \
+            .eq("id", franchise_id) \
+            .execute()
+        
+        unavailable_states = []
+        if franchise_response.data and franchise_response.data[0]:
+            unavailable_states = franchise_response.data[0].get("unavailable_states") or []
         
         # Fetch all territory checks for this franchise
         response = supabase_client().table("territory_checks") \
@@ -101,7 +117,8 @@ async def get_franchise_territories(franchise_id: int):
         return {
             "franchise_id": franchise_id,
             "territory_count": len(raw_data),
-            "states": hierarchy
+            "states": hierarchy,
+            "unavailable_states": unavailable_states,
         }
         
     except Exception as e:

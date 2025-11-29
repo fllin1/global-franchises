@@ -180,30 +180,80 @@ async function fetchCountyBoundariesFallback(stateCode: string): Promise<Feature
 }
 
 /**
- * Fetch ZIP code boundaries for a specific area
- * Note: ZIP code boundaries are large, so we only load on-demand for specific areas
+ * Fetch city/place boundaries for a specific state.
+ * Loads from local pre-downloaded GeoJSON files.
+ * 
+ * @param stateCode - 2-letter state code (e.g., "TX")
+ * @param countyName - Optional county name to filter cities (not yet implemented)
  */
-export async function fetchZipBoundaries(stateCode: string, county?: string): Promise<FeatureCollection> {
-  const cacheKey = `zips-${stateCode}-${county || 'all'}`;
+export async function fetchCityBoundaries(stateCode: string, countyName?: string): Promise<FeatureCollection> {
+  const upperStateCode = stateCode.toUpperCase();
+  const cacheKey = `cities-${upperStateCode}`;
+  
+  if (geoCache.has(cacheKey)) {
+    const cached = geoCache.get(cacheKey)!;
+    // If county filter is provided, we'd filter here (future enhancement)
+    return cached;
+  }
+
+  try {
+    const localUrl = `/geo/cities/${upperStateCode}.geojson`;
+    console.log(`Loading city boundaries for ${upperStateCode} from local file...`);
+    const response = await fetch(localUrl);
+    
+    if (response.ok) {
+      const data = await response.json() as FeatureCollection;
+      if (data.features && data.features.length > 0) {
+        console.log(`Loaded ${data.features.length} cities for ${upperStateCode}`);
+        geoCache.set(cacheKey, data);
+        return data;
+      }
+    }
+    
+    console.warn(`City boundaries not available for ${upperStateCode}`);
+    const emptyCollection: FeatureCollection = { type: 'FeatureCollection', features: [] };
+    geoCache.set(cacheKey, emptyCollection);
+    return emptyCollection;
+  } catch (error) {
+    console.error(`Error loading city boundaries for ${upperStateCode}:`, error);
+    return { type: 'FeatureCollection', features: [] };
+  }
+}
+
+/**
+ * Fetch ZIP code (ZCTA) boundaries for a specific state.
+ * Loads from local pre-downloaded GeoJSON files.
+ * 
+ * @param stateCode - 2-letter state code (e.g., "TX")
+ */
+export async function fetchZipBoundaries(stateCode: string): Promise<FeatureCollection> {
+  const upperStateCode = stateCode.toUpperCase();
+  const cacheKey = `zips-${upperStateCode}`;
+  
   if (geoCache.has(cacheKey)) {
     return geoCache.get(cacheKey)!;
   }
 
   try {
-    // ZIP code boundaries are typically very large files
-    // For now, we'll return an empty collection and use point markers for ZIPs
-    // In production, you'd use a spatial database or tile server
-    console.log(`ZIP boundary data would be loaded for ${stateCode}/${county}`);
+    const localUrl = `/geo/zips/${upperStateCode}.geojson`;
+    console.log(`Loading ZIP boundaries for ${upperStateCode} from local file...`);
+    const response = await fetch(localUrl);
     
-    const emptyCollection: FeatureCollection = {
-      type: 'FeatureCollection',
-      features: []
-    };
+    if (response.ok) {
+      const data = await response.json() as FeatureCollection;
+      if (data.features && data.features.length > 0) {
+        console.log(`Loaded ${data.features.length} ZIPs for ${upperStateCode}`);
+        geoCache.set(cacheKey, data);
+        return data;
+      }
+    }
     
+    console.warn(`ZIP boundaries not available for ${upperStateCode}`);
+    const emptyCollection: FeatureCollection = { type: 'FeatureCollection', features: [] };
     geoCache.set(cacheKey, emptyCollection);
     return emptyCollection;
   } catch (error) {
-    console.error(`Error loading ZIP boundaries:`, error);
+    console.error(`Error loading ZIP boundaries for ${upperStateCode}:`, error);
     return { type: 'FeatureCollection', features: [] };
   }
 }
@@ -392,6 +442,64 @@ export function findCountyFeature(collection: FeatureCollection, countyName: str
     const featureName = (props.NAME || props.name || props.COUNTY || '').toLowerCase().replace(/\s+county$/i, '').trim();
     return featureName === normalizedName;
   });
+}
+
+/**
+ * Find a feature by city name in a FeatureCollection
+ */
+export function findCityFeature(collection: FeatureCollection, cityName: string): Feature | undefined {
+  const normalizedName = cityName.toLowerCase().trim();
+  
+  return collection.features.find(f => {
+    const props = f.properties || {};
+    const featureName = (props.NAME || props.name || '').toLowerCase().trim();
+    return featureName === normalizedName;
+  });
+}
+
+/**
+ * Find a feature by ZIP code in a FeatureCollection
+ */
+export function findZipFeature(collection: FeatureCollection, zipCode: string): Feature | undefined {
+  const normalizedZip = zipCode.trim();
+  
+  return collection.features.find(f => {
+    const props = f.properties || {};
+    const featureZip = props.ZCTA5 || props.GEOID || '';
+    return featureZip === normalizedZip;
+  });
+}
+
+/**
+ * Filter cities in a collection that match a list of city names
+ */
+export function filterCitiesByNames(collection: FeatureCollection, cityNames: string[]): FeatureCollection {
+  const normalizedNames = new Set(cityNames.map(n => n.toLowerCase().trim()));
+  
+  return {
+    type: 'FeatureCollection',
+    features: collection.features.filter(f => {
+      const props = f.properties || {};
+      const featureName = (props.NAME || props.name || '').toLowerCase().trim();
+      return normalizedNames.has(featureName);
+    })
+  };
+}
+
+/**
+ * Filter ZIPs in a collection that match a list of ZIP codes
+ */
+export function filterZipsByCode(collection: FeatureCollection, zipCodes: string[]): FeatureCollection {
+  const normalizedZips = new Set(zipCodes.map(z => z.trim()));
+  
+  return {
+    type: 'FeatureCollection',
+    features: collection.features.filter(f => {
+      const props = f.properties || {};
+      const featureZip = props.ZCTA5 || props.GEOID || '';
+      return normalizedZips.has(featureZip);
+    })
+  };
 }
 
 /**
