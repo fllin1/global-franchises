@@ -55,9 +55,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added breadcrumb navigation showing: All States > State > City > ZIP.
   - Clicking breadcrumb items navigates back up the hierarchy.
   - Added proper drill-down from states → cities → zip codes.
-  - Fixed Leaflet "Map container already initialized" error with unique key on mount.
   - Improved visual indicators for available (green) vs not available (red) territories.
   - Added territory count badges at each level.
+
+- **Leaflet "Map container already initialized" Error** (Final Fix):
+  - Fixed persistent runtime error when clicking Territory Availability tab.
+  - **Root cause**: react-leaflet's lifecycle management doesn't properly handle Next.js tab switching and component remounting.
+  - **Solution**: Completely rewrote `frontend/src/components/FranchiseTerritoryMap.client.tsx` using **imperative Leaflet API** instead of react-leaflet.
+  - Key changes:
+    1. Removed all react-leaflet components (`MapContainer`, `TileLayer`, `Marker`, `Popup`, `Circle`).
+    2. Use native Leaflet API: `L.map()`, `L.tileLayer()`, `L.marker()`, `L.circle()`, `L.layerGroup()`.
+    3. Map instance managed entirely via `mapRef` ref with full manual lifecycle control.
+    4. Markers managed via `markersLayerRef` layer group for easy clearing/updating.
+    5. Explicit cleanup in useEffect: checks for existing `_leaflet_id`, clears container children, calls `map.remove()`.
+    6. Map view updates via `map.setView()` in separate useEffect.
+    7. Markers update reactively by clearing and recreating the layer group contents.
 
 ### Changed
 - **Territory Data Backend**:

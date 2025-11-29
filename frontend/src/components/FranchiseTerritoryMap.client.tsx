@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { ListFilter, Loader2, ChevronRight, Home, Map as MapIcon } from 'lucide-react';
 
 interface TerritoryCheck {
@@ -31,25 +31,42 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
     const [selectedState, setSelectedState] = useState<string | null>(null);
     const [selectedCity, setSelectedCity] = useState<string | null>(null);
     const [selectedZip, setSelectedZip] = useState<string | null>(null);
-    const [LeafletComponents, setLeafletComponents] = useState<any>(null);
-    const [mapKey, setMapKey] = useState(0);
+    const [leafletLoaded, setLeafletLoaded] = useState(false);
+    const [L, setL] = useState<any>(null);
+    
+    // Refs for imperative map management
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    const mapRef = useRef<any>(null);
+    const markersLayerRef = useRef<any>(null);
 
+    // Load Leaflet library dynamically (not react-leaflet)
     useEffect(() => {
+        let isMounted = true;
+        
         Promise.all([
-            import('react-leaflet'),
             import('leaflet'),
             import('leaflet/dist/leaflet.css' as any)
-        ]).then(([RL, L]) => {
+        ]).then(([LeafletModule]) => {
+            if (!isMounted) return;
+            
+            const Leaflet = LeafletModule.default || LeafletModule;
+            
+            // Fix default marker icons
             // @ts-ignore
-            delete L.Icon.Default.prototype._getIconUrl;
-            L.Icon.Default.mergeOptions({
+            delete Leaflet.Icon.Default.prototype._getIconUrl;
+            Leaflet.Icon.Default.mergeOptions({
                 iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
                 iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
                 shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
             });
-            setLeafletComponents({ RL, L });
-            setMapKey(prev => prev + 1);
-        }).catch(err => console.error("Failed to load map components", err));
+            
+            setL(Leaflet);
+            setLeafletLoaded(true);
+        }).catch(err => console.error("Failed to load Leaflet", err));
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     const breadcrumbs: BreadcrumbItem[] = useMemo(() => {
@@ -130,6 +147,127 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         return mapCenter;
     }, [filteredList, mapCenter]);
 
+    const currentZoom = selectedZip ? 12 : (selectedCity ? 10 : (selectedState ? 7 : 4));
+
+    // Initialize map imperatively
+    useEffect(() => {
+        if (!leafletLoaded || !L || !mapContainerRef.current) return;
+        
+        // Check if map already exists on this container
+        const container = mapContainerRef.current;
+        if ((container as any)._leaflet_id) {
+            // Container already has a map - clean it up first
+            if (mapRef.current) {
+                try {
+                    mapRef.current.remove();
+                } catch (e) {
+                    // Ignore errors during cleanup
+                }
+            }
+            delete (container as any)._leaflet_id;
+            // Clear the container's children
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+        }
+        
+        // Create map
+        const map = L.map(container, {
+            center: mapCenter,
+            zoom: 4,
+            scrollWheelZoom: true,
+        });
+        
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Create a layer group for markers
+        const markersLayer = L.layerGroup().addTo(map);
+        
+        mapRef.current = map;
+        markersLayerRef.current = markersLayer;
+        
+        // Cleanup on unmount
+        return () => {
+            if (markersLayerRef.current) {
+                markersLayerRef.current.clearLayers();
+                markersLayerRef.current = null;
+            }
+            if (mapRef.current) {
+                try {
+                    mapRef.current.remove();
+                } catch (e) {
+                    // Ignore errors during cleanup
+                }
+                mapRef.current = null;
+            }
+            // Extra cleanup of the container's leaflet id
+            if (container && (container as any)._leaflet_id) {
+                delete (container as any)._leaflet_id;
+            }
+        };
+    }, [leafletLoaded, L, mapCenter]);
+
+    // Update map view when center/zoom changes
+    useEffect(() => {
+        if (!mapRef.current) return;
+        mapRef.current.setView(currentCenter, currentZoom);
+    }, [currentCenter, currentZoom]);
+
+    // Update markers when data changes
+    useEffect(() => {
+        if (!mapRef.current || !markersLayerRef.current || !L) return;
+        
+        // Clear existing markers
+        markersLayerRef.current.clearLayers();
+        
+        // Add new markers
+        markers.forEach((markerData) => {
+            if (!markerData.latitude || !markerData.longitude) return;
+            
+            const position: [number, number] = [markerData.latitude, markerData.longitude];
+            
+            // Create marker
+            const marker = L.marker(position);
+            
+            // Create popup content
+            const popupContent = `
+                <div class="p-1">
+                    <strong class="block mb-1">${markerData.city || 'Unknown'}, ${markerData.state_code}</strong>
+                    <div class="text-sm font-medium ${markerData.availability_status === 'Available' ? 'text-emerald-600' : 'text-rose-500'}">${markerData.availability_status}</div>
+                    ${markerData.zip_code ? `<div class="text-xs text-slate-500 mt-1">ZIP: ${markerData.zip_code}</div>` : ''}
+                </div>
+            `;
+            marker.bindPopup(popupContent);
+            
+            // Add click handler
+            marker.on('click', () => {
+                setSelectedState(markerData.state_code);
+                if (markerData.city) setSelectedCity(markerData.city);
+                if (markerData.zip_code) setSelectedZip(markerData.zip_code);
+            });
+            
+            // Add to layer group
+            markersLayerRef.current.addLayer(marker);
+            
+            // Add circle if radius is specified
+            if (markerData.radius_miles) {
+                const isAvailable = markerData.availability_status === 'Available';
+                const circle = L.circle(position, {
+                    radius: markerData.radius_miles * 1609.34, // Convert miles to meters
+                    fillColor: isAvailable ? '#10b981' : '#f43f5e',
+                    color: isAvailable ? '#059669' : '#e11d48',
+                    weight: 1,
+                    opacity: 0.5,
+                    fillOpacity: 0.2
+                });
+                markersLayerRef.current.addLayer(circle);
+            }
+        });
+    }, [markers, L]);
+
     if (!data?.states || Object.keys(data.states).length === 0) {
         return (
             <div className="flex items-center justify-center h-full bg-slate-50 text-slate-500">
@@ -142,7 +280,7 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         );
     }
 
-    if (!LeafletComponents) {
+    if (!leafletLoaded) {
         return (
             <div className="flex items-center justify-center h-full bg-slate-50 text-slate-400">
                 <Loader2 className="w-6 h-6 animate-spin mr-2" />
@@ -150,16 +288,6 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
             </div>
         );
     }
-
-    const { MapContainer, TileLayer, Marker, Popup, Circle, useMap } = LeafletComponents.RL;
-
-    function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }) {
-        const map = useMap();
-        useEffect(() => { map.setView(center, zoom); }, [map, center, zoom]);
-        return null;
-    }
-
-    const currentZoom = selectedZip ? 12 : (selectedCity ? 10 : (selectedState ? 7 : 4));
 
     return (
         <div className="flex h-full flex-col">
@@ -247,24 +375,13 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
                 </div>
 
                 <div className="flex-1 relative bg-slate-100">
-                    <MapContainer key={mapKey} center={mapCenter} zoom={4} style={{ height: '100%', width: '100%' }} scrollWheelZoom={true}>
-                        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                        <MapUpdater center={currentCenter} zoom={currentZoom} />
-                        {markers.map((marker) => (
-                            <div key={marker.id}>
-                                <Marker position={[marker.latitude!, marker.longitude!]} eventHandlers={{ click: () => { setSelectedState(marker.state_code); if (marker.city) setSelectedCity(marker.city); if (marker.zip_code) setSelectedZip(marker.zip_code); } }}>
-                                    <Popup>
-                                        <div className="p-1">
-                                            <strong className="block mb-1">{marker.city || 'Unknown'}, {marker.state_code}</strong>
-                                            <div className={'text-sm font-medium ' + (marker.availability_status === 'Available' ? 'text-emerald-600' : 'text-rose-500')}>{marker.availability_status}</div>
-                                            {marker.zip_code && <div className="text-xs text-slate-500 mt-1">ZIP: {marker.zip_code}</div>}
-                                        </div>
-                                    </Popup>
-                                </Marker>
-                                {marker.radius_miles && <Circle center={[marker.latitude!, marker.longitude!]} radius={marker.radius_miles * 1609.34} pathOptions={{ fillColor: marker.availability_status === 'Available' ? '#10b981' : '#f43f5e', color: marker.availability_status === 'Available' ? '#059669' : '#e11d48', weight: 1, opacity: 0.5, fillOpacity: 0.2 }} />}
-                            </div>
-                        ))}
-                    </MapContainer>
+                    {/* Map container - Leaflet will attach to this div */}
+                    <div 
+                        ref={mapContainerRef} 
+                        style={{ height: '100%', width: '100%' }}
+                    />
+                    
+                    {/* Legend overlay */}
                     <div className="absolute bottom-6 right-6 bg-white p-3 rounded-lg shadow-lg z-[1000] text-xs">
                         <div className="font-semibold text-slate-700 mb-2">Territory Status</div>
                         <div className="flex items-center gap-2 mb-1.5"><div className="w-3 h-3 rounded-full bg-emerald-500"></div><span>Available</span></div>
