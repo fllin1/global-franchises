@@ -49,7 +49,9 @@ async def get_franchises_by_location(state_code: str = Query(..., min_length=2, 
 async def get_franchise_territories(franchise_id: int):
     """
     Get structured territory availability for a franchise.
-    Returns hierarchy: State -> City -> Zip details.
+    Returns hierarchy: State -> County -> City -> Territory Check details.
+    
+    The hierarchy is flexible - if county is not available, "Unspecified County" is used.
     """
     try:
         logger.info(f"Fetching territory checks for Franchise ID: {franchise_id}")
@@ -62,27 +64,39 @@ async def get_franchise_territories(franchise_id: int):
             
         raw_data = response.data
         
-        # Organize into hierarchy
-        hierarchy = {}
+        # Organize into 4-level hierarchy: State -> County -> City -> TerritoryCheck[]
+        hierarchy: Dict[str, Dict[str, Dict[str, List[Any]]]] = {}
         
         for item in raw_data:
             state = item.get('state_code') or "Unknown"
+            county = item.get('county') or "Unspecified County"
             city = item.get('city') or "Unspecified Area"
             
+            # Initialize nested dictionaries as needed
             if state not in hierarchy:
                 hierarchy[state] = {}
             
-            if city not in hierarchy[state]:
-                hierarchy[state][city] = []
+            if county not in hierarchy[state]:
+                hierarchy[state][county] = {}
+            
+            if city not in hierarchy[state][county]:
+                hierarchy[state][county][city] = []
             
             # Transform field names for frontend compatibility
-            # DB has raw_text and is_available, frontend expects location_raw and availability_status
+            # DB may have location_raw already, or raw_text as legacy
+            # DB has availability_status already from new inserts
             transformed_item = {
                 **item,
-                "location_raw": item.get("raw_text", ""),
-                "availability_status": "Available" if item.get("is_available") else "Not Available"
+                # Ensure location_raw exists (handle legacy raw_text field)
+                "location_raw": item.get("location_raw") or item.get("raw_text", ""),
+                # Ensure availability_status exists (handle legacy is_available field)
+                "availability_status": item.get("availability_status") or (
+                    "Available" if item.get("is_available") else "Not Available"
+                ),
+                # Include county in the item for frontend access
+                "county": county if county != "Unspecified County" else None,
             }
-            hierarchy[state][city].append(transformed_item)
+            hierarchy[state][county][city].append(transformed_item)
             
         return {
             "franchise_id": franchise_id,

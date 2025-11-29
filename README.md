@@ -8,7 +8,7 @@ Global Franchises is a comprehensive platform that scrapes franchise information
 
 Note: _Franserve is a private platform in the US for brokers_
 
-*Project Prompt Count: 136*
+*Project Prompt Count: 140*
 
 ## Setup Instructions
 

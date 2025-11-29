@@ -149,6 +149,7 @@ export interface TerritoryCheck {
   id: number;
   location_raw: string;
   state_code: string;
+  county: string | null;  // County name (e.g., "Harris County", "Essex County")
   city: string | null;
   zip_code: string | null;
   latitude: number | null;
@@ -157,10 +158,17 @@ export interface TerritoryCheck {
   radius_miles: number | null;
 }
 
+/**
+ * Territory data organized in a 4-level hierarchy:
+ * State -> County -> City -> TerritoryCheck[]
+ * 
+ * When county is not available, "Unspecified County" is used as a placeholder.
+ * This allows flexible navigation - skipping county when it's unspecified.
+ */
 export interface TerritoryData {
   franchise_id: number;
   territory_count: number;
-  states: Record<string, Record<string, TerritoryCheck[]>>;
+  states: Record<string, Record<string, Record<string, TerritoryCheck[]>>>;
 }
 
 export interface MarketGrowthStatistics {

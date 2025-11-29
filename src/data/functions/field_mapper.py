@@ -393,34 +393,73 @@ def extract_radius_miles(location_text: str) -> Optional[float]:
     return None
 
 
-def lookup_zip_with_pgeocode(zip_code: str) -> Tuple[Optional[str], Optional[str], Optional[float], Optional[float]]:
+def extract_county(location_text: str) -> Optional[str]:
     """
-    Look up zip code using pgeocode to get city, state, lat, lon.
+    Extract county name from location text.
+    
+    Patterns matched:
+    - "Union County, NJ"
+    - "Essex County"
+    - "Harris County, TX"
+    - "Union & Essex Counties, NJ" (returns first county)
+    
+    Args:
+        location_text: Raw location string
+        
+    Returns:
+        County name (without "County" suffix) or None
+    """
+    if not location_text:
+        return None
+    
+    # Pattern 1: "X County" or "X Counties" (with optional comma/state after)
+    # This matches patterns like "Union County", "Harris County, TX", "Essex Counties"
+    county_pattern = r'([A-Z][a-zA-Z\s]+?)\s+Count(?:y|ies)(?:\s*,|\s|$)'
+    matches = re.findall(county_pattern, location_text, re.IGNORECASE)
+    
+    if matches:
+        # Return first county found, cleaned up
+        county = matches[0].strip()
+        # Handle cases like "Union & Essex" - take just the first
+        if '&' in county:
+            county = county.split('&')[0].strip()
+        if ' and ' in county.lower():
+            county = county.split(' and ')[0].strip()
+        return county
+    
+    return None
+
+
+def lookup_zip_with_pgeocode(zip_code: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[float], Optional[float]]:
+    """
+    Look up zip code using pgeocode to get city, state, county, lat, lon.
     
     Args:
         zip_code: 5-digit US zip code
         
     Returns:
-        Tuple of (city, state_code, latitude, longitude)
+        Tuple of (city, state_code, county, latitude, longitude)
     """
     if not zip_code:
-        return None, None, None, None
+        return None, None, None, None, None
     
     try:
         nomi = _get_nomi()
         geo = nomi.query_postal_code(zip_code)
         
         if geo.empty or str(geo.latitude) == 'nan':
-            return None, None, None, None
+            return None, None, None, None, None
         
         city = geo.place_name if hasattr(geo, 'place_name') else None
         state = geo.state_code if hasattr(geo, 'state_code') else None
+        # pgeocode stores county in 'county_name' field
+        county = geo.county_name if hasattr(geo, 'county_name') and str(geo.county_name) != 'nan' else None
         lat = float(geo.latitude) if str(geo.latitude) != 'nan' else None
         lon = float(geo.longitude) if str(geo.longitude) != 'nan' else None
         
-        return city, state, lat, lon
+        return city, state, county, lat, lon
     except Exception:
-        return None, None, None, None
+        return None, None, None, None, None
 
 
 def parse_territory_check(
@@ -433,6 +472,7 @@ def parse_territory_check(
     Extracts:
     - state_code from location text
     - zip_code from location text
+    - county from LLM output or text extraction, with pgeocode fallback
     - city, latitude, longitude from pgeocode lookup
     - radius_miles from location text
     - Converts is_available to availability_status
@@ -440,7 +480,7 @@ def parse_territory_check(
     
     Args:
         check: Territory check dict from LLM output with keys:
-               date, location, is_available, notes
+               date, location, is_available, notes, county (optional)
         franchise_id: The database ID of the franchise
         
     Returns:
@@ -456,18 +496,30 @@ def parse_territory_check(
     zip_code = extract_zip_code(location_raw)
     radius_miles = extract_radius_miles(location_raw)
     
-    # Look up zip code for city and coordinates
+    # Extract county: 
+    # 1. First try LLM-extracted county from check dict
+    # 2. Then try regex extraction from location text
+    # 3. Finally fallback to pgeocode lookup
+    county = check.get("county")  # LLM may have extracted it
+    if not county:
+        county = extract_county(location_raw)  # Try regex extraction
+    
+    # Look up zip code for city, county (fallback), and coordinates
     city = None
     latitude = None
     longitude = None
+    pgeo_county = None
     
     if zip_code:
-        pgeo_city, pgeo_state, latitude, longitude = lookup_zip_with_pgeocode(zip_code)
+        pgeo_city, pgeo_state, pgeo_county, latitude, longitude = lookup_zip_with_pgeocode(zip_code)
         if pgeo_city:
             city = pgeo_city
         # If we didn't extract state from text but got it from pgeocode, use that
         if not state_code and pgeo_state:
             state_code = pgeo_state
+        # Use pgeocode county as fallback if we didn't extract one
+        if not county and pgeo_county:
+            county = pgeo_county
     
     # Convert availability boolean to status text
     is_available = check.get("is_available")
@@ -494,6 +546,7 @@ def parse_territory_check(
         "check_date": check_date,
         "location_raw": location_raw,
         "state_code": state_code,
+        "county": county,
         "availability_status": availability_status,
         "city": city,
         "zip_code": zip_code,

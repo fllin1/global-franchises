@@ -236,13 +236,14 @@ Tracks franchise matches for leads (for robust match tracking).
 ### Territory Management Tables
 
 #### `territory_checks`
-Tracks franchise territory availability by location.
+Tracks franchise territory availability by location with 4-level hierarchy: State -> County -> City -> Zip.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | `integer` | Primary key (auto-increment) |
 | `franchise_id` | `integer` | Foreign key to `franchises.id` |
 | `state_code` | `text` | 2-letter state code (e.g., "TX", "NY") |
+| `county` | `text` | County name (e.g., "Harris County", "Essex County") |
 | `city` | `text` | City name |
 | `zip_code` | `text` | ZIP code |
 | `covered_zips` | `text[]` | Array of ZIP codes covered by this territory |
@@ -259,6 +260,7 @@ Tracks franchise territory availability by location.
 - Foreign key on `franchise_id`
 - Index on `franchise_id` for efficient lookups
 - Index on `state_code` for state-based queries
+- Index on `county` for county-based queries
 - Index on `zip_code` for geospatial queries
 - Index on `city` for city-based queries
 

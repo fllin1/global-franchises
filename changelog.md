@@ -7,6 +7,139 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-29] - Local County GeoJSON Hosting
+
+### Added
+- **Local County Boundary Files**:
+  - Created `scripts/download_county_geojson.py` Python script to download and split US county boundaries by state.
+  - Downloaded 3,221 county polygons from Plotly datasets (Census Bureau source).
+  - Split into 52 state/territory files in `frontend/public/geo/counties/` (total 2.78 MB).
+  - Each file contains GeoJSON FeatureCollection with normalized properties: `NAME`, `GEOID`, `STATE`, `STATEFP`, `COUNTYFP`.
+
+### Changed
+- **Geographic Data Loading Priority** (`frontend/src/lib/geo.ts`):
+  - Updated `fetchCountyBoundaries()` to use 3-tier fallback strategy:
+    1. **Local files first** (most reliable, no CORS): `/geo/counties/${stateCode}.geojson`
+    2. **Census TIGER API** (fallback if local missing): Live API call
+    3. **GitHub TopoJSON** (last resort): Community-hosted files
+  - This eliminates CORS issues and network dependencies for county boundary rendering.
+  - Added caching to GitHub fallback function for consistency.
+
+### Notes
+- Local county files are pre-simplified for web display (~36KB average per state).
+- County boundaries will render when drilling down from state to county view on territory maps.
+
+## [2025-11-29] - Territory Map Data Linking Fix
+
+### Fixed
+- **Territory Map "0 checks" Bug**:
+  - Fixed critical bug where Territory Availability Map showed total count in header (e.g., "25 checks") but "0 checks" for all states in the sidebar.
+  - **Root Cause**: The production backend was returning a 2-level hierarchy (`state → city → array`) instead of the correct 3-level hierarchy (`state → county → city → array`).
+  - **Investigation**: Used console debugging and API testing to identify structure mismatch between local and production backends.
+  - The local backend (`src/backend/franchises.py`) correctly builds the 4-level hierarchy, but the production deployment had an older version.
+  
+### Changed
+- **Frontend Development Environment**:
+  - Updated `frontend/.env.local` to use local backend (`http://127.0.0.1:8000`) for development testing.
+  - This allows testing against the latest backend code before production deployment.
+
+### Notes
+- **Deployment Required**: The backend changes in `src/backend/franchises.py` need to be deployed to production (Railway) to fix the bug in production.
+- The fix involves the county-level hierarchy that was added in a previous update but not yet deployed.
+
+## [2025-11-29] - Territory Map Enhancement with Polygon Rendering
+
+### Added
+- **US States GeoJSON Data**:
+  - Added `frontend/public/geo/us-states.geojson` for state boundary polygon rendering.
+  - States are now displayed as colored polygons on the map instead of just point markers.
+
+- **Geographic Utilities** (`frontend/src/lib/geo.ts`):
+  - `fetchStatesBoundaries()`: Loads states GeoJSON from local file.
+  - `fetchCountyBoundaries(stateCode)`: Fetches county boundaries on-demand from external API.
+  - `fetchZipBoundaries()`: Placeholder for ZIP code boundary fetching.
+  - `getStateCodeFromFeature()`: Extracts state code from GeoJSON feature properties.
+  - `getFeatureBounds()`: Calculates bounding box for map zoom.
+  - `STATE_NAMES` and `STATE_FIPS` mapping constants.
+
+- **Availability-Based Coloring**:
+  - States/counties colored based on territory check status:
+    - Green (`#10b981`): Available checks exist
+    - Red (`#f43f5e`): Unavailable checks exist
+    - Orange/Amber (`#f59e0b`): Mixed availability
+    - Gray (`#94a3b8`): No territory data (neutral)
+  - Updated legend to show all availability states.
+
+- **Bidirectional Hover Synchronization**:
+  - Hovering on sidebar list items highlights corresponding map polygon/marker.
+  - Hovering on map features highlights corresponding sidebar item.
+  - Visual feedback with increased opacity and border weight on hover.
+
+- **Sorted Lists by Check Count**:
+  - States list sorted by territory check count (descending).
+  - Counties sorted by check count within selected state.
+  - Cities sorted by check count within selected county.
+
+### Changed
+- **Complete FranchiseTerritoryMap.client.tsx Rewrite**:
+  - Replaced point-marker-only approach with polygon-based rendering.
+  - Added `viewLevel` state tracking: states → counties → cities → zips.
+  - Implemented zoom-to-bounds when selecting state/county/city.
+  - Added loading states for GeoJSON data fetching.
+  - Counties fallback to city markers when GeoJSON not available.
+
+### Fixed
+- **"NaN checks" Display Bug**:
+  - Fixed counting functions (`getStateCheckCount`, `getCountyCheckCount`, `getCityCheckCount`) with defensive type checking.
+  - Added `Array.isArray()` guards to prevent NaN from malformed data.
+  - Added try-catch blocks for error recovery.
+
+## [2025-11-29] - County-Level Territory Granularity
+
+### Added
+- **County Field to Territory System**:
+  - Added `county` column to `territory_checks` database table with index (`docs/database/add_county_to_territory_checks.sql`).
+  - Migration applied to Supabase database via `mcp_supabase_apply_migration`.
+  
+- **LLM County Extraction**:
+  - Updated `config/franserve/structured_output.json` to include `county` field in `recent_territory_checks` items.
+  - LLM now extracts county names when explicitly mentioned in territory check text (e.g., "Union County, NJ").
+
+- **County Parsing Functions** (`src/data/functions/field_mapper.py`):
+  - Added `extract_county()` function with regex patterns to extract county names from location text.
+  - Updated `lookup_zip_with_pgeocode()` to return county information from pgeocode lookups (5-tuple instead of 4-tuple).
+  - Updated `parse_territory_check()` to include county in output using three-tier priority:
+    1. LLM-extracted county from check dict
+    2. Regex extraction from location text
+    3. pgeocode lookup fallback from zip code
+
+- **Backend 4-Level Hierarchy**:
+  - Updated `get_franchise_territories()` endpoint in `src/backend/franchises.py` to return 4-level hierarchy: State -> County -> City -> TerritoryCheck[].
+  - When county is not available, "Unspecified County" is used as placeholder for flexible navigation.
+
+- **Frontend County Support**:
+  - Updated `TerritoryCheck` interface in `frontend/src/types/index.ts` with `county` field.
+  - Updated `TerritoryData` interface to support 4-level nested structure: `Record<string, Record<string, Record<string, TerritoryCheck[]>>>`.
+  - Rewrote `FranchiseTerritoryMap.client.tsx` with full 4-level navigation support:
+    - Added `selectedCounty` state for county-level selection.
+    - Updated breadcrumbs: All States -> State -> County (if not Unspecified) -> City -> Zip.
+    - Added county icon (Building2) in navigation.
+    - Smart auto-selection: when state has only "Unspecified County", automatically skip to city selection.
+    - County check counts displayed in sidebar.
+    - Map popup now shows county information when available.
+    - Marker click handler navigates to correct county -> city -> zip path.
+
+- **Backfill Script**:
+  - Created `src/backend/scripts/backfill_territory_counties.py` for populating county data on existing records.
+  - Uses pgeocode to look up county from zip codes for records missing county.
+  - Supports `--dry-run` mode for preview and `--batch-size` for performance tuning.
+  - Progress tracking and comprehensive summary report.
+
+### Changed
+- **Territory Hierarchy**:
+  - Changed from 3-level (State -> City -> Zip) to 4-level (State -> County -> City -> Zip) hierarchy.
+  - Flexible navigation allows skipping county level when it's "Unspecified County".
+
 ## [2025-11-29] - Franchise Detail Page Enhancement & Territory Tab Fix
 
 ### Added

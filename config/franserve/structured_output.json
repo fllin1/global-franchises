@@ -177,6 +177,10 @@
                 "type": "string",
                 "description": "Location description (can be city, state, zip code, or combinations)."
               },
+              "county": {
+                "type": "string",
+                "description": "County name if explicitly mentioned in the location text (e.g., 'Union County', 'Essex County', 'Harris County'). Extract the county name without the word 'County' suffix when storing."
+              },
               "is_available": {
                 "type": "boolean",
                 "description": "Whether the territory is available (true) or not available (false)."
