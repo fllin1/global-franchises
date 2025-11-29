@@ -1,95 +1,128 @@
 # Cursor Rules for FranchisesGlobal Project
 
-## Changelog Maintenance Rules
+## Git Commit Message Guidelines (Conventional Commits)
 
-### CRITICAL: Always Update Changelog
+### CRITICAL: Follow Conventional Commits Format
 
-**Every time you make changes to the codebase, you MUST update `changelog.md` immediately.**
+**All commit messages MUST follow the Conventional Commits specification.**
 
-### Changelog Format Requirements
+### Commit Message Structure
 
-1. **Date Format**: Use `[YYYY-MM-DD]` format for all date entries (e.g., `[2025-11-20]`)
+```
+<type>(<scope>): <subject>
 
-2. **Entry Structure**:
-   - New entries go at the top, right after `## [Unreleased]` section
-   - If today's date doesn't exist, create a new date section: `## [YYYY-MM-DD] - Brief Description`
-   - If today's date already exists, add to that section
+<body>
 
-3. **Categorization**: Always categorize changes using these sections:
-   - `### Added` - New features, endpoints, components, functions, tables, etc.
-   - `### Changed` - Modifications to existing functionality
-   - `### Fixed` - Bug fixes and error resolutions
-   - `### Removed` - Deprecated or deleted features
-
-4. **Entry Format**:
-   - Use bullet points (`-`) for all entries
-   - Group related changes under **bold headers** (e.g., `- **Feature Name**:`)
-   - Include file paths in backticks: `` `path/to/file.py` ``
-   - Use nested bullets (2 spaces) for sub-items
-   - Be descriptive: explain WHAT was changed and WHY it matters
-
-5. **Required Information**:
-   - File paths for all modified/new files
-   - Function/component/endpoint names
-   - Database changes (tables, functions, migrations)
-   - API endpoints with full paths
-   - Component names for frontend changes
-
-### Example Format
-
-```markdown
-## [2025-11-20] - Feature Name
-
-### Added
-- **Feature Category**:
-  - Implemented new feature X (`src/path/to/file.py`).
-  - Added `/api/endpoint` endpoint for Y functionality.
-  - Created `ComponentName` component (`frontend/src/components/Component.tsx`).
-
-### Changed
-- **Module Name**:
-  - Enhanced function X to support Y.
-  - Updated default value from A to B.
-
-### Fixed
-- Fixed bug description in `src/path/to/file.py`.
-- Resolved issue with X that was causing Y.
+<footer>
 ```
 
-### When to Update Changelog
+### Commit Types (Required)
 
-Update the changelog when you:
-- Add new files, functions, endpoints, components, or features
-- Modify existing functionality
-- Fix bugs or errors
-- Add or modify database schemas/functions
-- Update dependencies or configurations
-- Refactor code that changes behavior
-- Add tests or documentation
-- Remove deprecated features
+| Type | Description |
+|------|-------------|
+| `feat` | A new feature |
+| `fix` | A bug fix |
+| `docs` | Documentation only changes |
+| `style` | Code style changes (formatting, semicolons, etc.) - no logic changes |
+| `refactor` | Code refactoring without adding features or fixing bugs |
+| `test` | Adding or modifying tests |
+| `chore` | Maintenance tasks (dependencies, build, configs) |
+| `perf` | Performance improvements |
+| `ci` | CI/CD configuration changes |
+| `build` | Build system or external dependency changes |
+| `revert` | Reverts a previous commit |
 
-### Changelog Update Process
+### Scope (Optional but Recommended)
 
-1. **Before committing**: Review all changes made
-2. **Identify changes**: Categorize as Added/Changed/Fixed/Removed
-3. **Update changelog**: Add entries following the format above
-4. **Verify**: Ensure all significant changes are documented
-5. **Commit**: Include changelog update in the same commit
+The scope indicates which part of the codebase is affected:
+- `api` - Backend API changes
+- `frontend` - Frontend/UI changes
+- `db` - Database schema, migrations, functions
+- `auth` - Authentication/authorization
+- `ghl` - GoHighLevel integration
+- `scraper` - Web scraping functionality
+- `leads` - Lead management
+- `franchises` - Franchise management
+- `config` - Configuration files
+- `deps` - Dependencies
 
-### Prohibited Actions
+### Subject Line Rules
 
-- ❌ Never skip updating the changelog
-- ❌ Never use vague descriptions like "updated code" or "fixed stuff"
-- ❌ Never forget to include file paths
-- ❌ Never mix dates or use incorrect date formats
-- ❌ Never delete changelog entries without user approval
+1. **Use imperative mood**: "add feature" not "added feature" or "adds feature"
+2. **No capitalization**: Start with lowercase
+3. **No period at the end**
+4. **Max 50 characters**
 
-### Additional Project Rules
+### Body (Optional)
 
-- Always write tests first, then code, then adapt until tests pass
-- Always check the database for proper context before making changes
-- Always append changes per day in `changelog.md` with a clean summarized timeline
-- Never delete the database - follow all database safety protocols
-- Always ask follow-up questions if relevant information is missing
-- Always state the plan before executing changes that affect data or structure
+- Wrap at 72 characters
+- Explain WHAT and WHY, not HOW
+- Separate from subject with a blank line
+
+### Footer (Optional)
+
+- Reference issues: `Closes #123`, `Fixes #456`
+- Note breaking changes: `BREAKING CHANGE: description`
+
+### Examples
+
+**Feature:**
+```
+feat(leads): add territory availability filter
+
+Implement filtering leads by territory availability status.
+This allows users to focus on leads in available territories.
+
+Closes #42
+```
+
+**Bug Fix:**
+```
+fix(api): correct franchise investment range calculation
+
+Fixed rounding error in min/max investment calculation
+that was causing incorrect values in comparison table.
+
+Fixes #89
+```
+
+**Documentation:**
+```
+docs(readme): update installation instructions
+```
+
+**Refactor:**
+```
+refactor(frontend): extract comparison logic to custom hook
+```
+
+**Breaking Change:**
+```
+feat(api)!: change franchise endpoint response structure
+
+BREAKING CHANGE: The /api/franchises endpoint now returns
+a paginated response with `data` and `meta` keys instead
+of a flat array.
+```
+
+**Multiple Scopes:**
+```
+feat(api,frontend): implement lead comparison feature
+```
+
+**Chore:**
+```
+chore(deps): update Next.js to v15.0.3
+```
+
+### Prohibited Commit Messages
+
+- ❌ `update code` - Too vague
+- ❌ `fix bug` - No context
+- ❌ `WIP` - Don't commit work in progress
+- ❌ `asdfasdf` - Never commit garbage messages
+- ❌ `Fixed stuff` - Be specific
+- ❌ `Changes` - Describe what changed
+
+---
 

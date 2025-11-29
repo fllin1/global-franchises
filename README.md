@@ -8,6 +8,8 @@ Global Franchises is a comprehensive platform that scrapes franchise information
 
 Note: _Franserve is a private platform in the US for brokers_
 
+*Project Prompt Count: 132*
+
 ## Setup Instructions
 
 This project uses a Conda environment with Python 3.12 for the backend and Node.js for the frontend.
