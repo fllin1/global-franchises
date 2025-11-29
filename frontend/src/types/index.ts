@@ -142,3 +142,160 @@ export interface ComparisonItem {
 export interface ComparisonResponse {
   items: ComparisonItem[];
 }
+
+// --- Franchise Detail Types ---
+
+export interface TerritoryCheck {
+  id: number;
+  location_raw: string;
+  state_code: string;
+  city: string | null;
+  zip_code: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  availability_status: string;
+  radius_miles: number | null;
+}
+
+export interface TerritoryData {
+  franchise_id: number;
+  territory_count: number;
+  states: Record<string, Record<string, TerritoryCheck[]>>;
+}
+
+export interface MarketGrowthStatistics {
+  demographics?: string;
+  market_size?: string;
+  cagr?: string;
+  growth_period?: string;
+  recession_resistance?: string;
+}
+
+export interface IdealCandidateProfile {
+  skills?: string[];
+  personality_traits?: string[];
+  role_of_owner?: string;
+}
+
+export interface SupportTrainingDetails {
+  program_description?: string;
+  cost_included?: boolean;
+  cost_details?: string;
+  lodging_airfare_included?: boolean;
+  site_selection_assistance?: boolean;
+  lease_negotiation_assistance?: boolean;
+  mentor_available?: boolean;
+  mentoring_length?: string;
+}
+
+export interface IndustryAward {
+  source: string;
+  year: number;
+  award_name?: string;
+}
+
+export interface FranchiseDocuments {
+  regular?: string[];
+  client_focused?: string[];
+  recent_emails?: string[];
+  magazine_articles?: string[];
+}
+
+export interface CommissionStructure {
+  single_unit?: {
+    amount?: number;
+    description: string;
+  };
+  multi_unit?: {
+    percentage?: number;
+    max_per_unit?: number;
+    description: string;
+  };
+  resales?: {
+    percentage?: number;
+    max?: number;
+    description: string;
+  };
+  area_master_developer?: {
+    amount?: number | null;
+    description: string;
+  };
+}
+
+export interface FranchisePackage {
+  name: string;
+  franchise_fee: number;
+  total_investment_min?: number;
+  total_investment_max?: number;
+  territories_count?: number;
+  description?: string;
+}
+
+export interface FranchiseDetail {
+  id: number;
+  franchise_name: string;
+  slug?: string;
+  primary_category?: string;
+  sub_categories?: string[];
+  business_model_type?: string;
+  keywords?: string;
+  
+  // Financial
+  franchise_fee_usd?: number;
+  required_cash_investment_usd?: number;
+  required_net_worth_usd?: number;
+  total_investment_min_usd?: number;
+  total_investment_max_usd?: number;
+  royalty_details_text?: string;
+  sba_approved?: boolean;
+  sba_registered?: boolean;
+  providing_earnings_guidance_item19?: boolean;
+  additional_fees?: string;
+  financial_assistance_details?: string;
+  commission_structure?: CommissionStructure;
+  franchise_packages?: FranchisePackage[];
+  
+  // Operational
+  is_home_based?: boolean;
+  allows_semi_absentee?: boolean;
+  allows_absentee?: boolean;
+  e2_visa_friendly?: boolean;
+  master_franchise_opportunity?: boolean;
+  vetfran_member?: boolean;
+  vetfran_discount_details?: string;
+  
+  // Narrative
+  description_text?: string;
+  why_franchise_summary?: string;
+  ideal_candidate_profile_text?: string;
+  ideal_candidate_profile?: IdealCandidateProfile;
+  market_growth_statistics?: MarketGrowthStatistics;
+  
+  // Territory
+  unavailable_states?: string[];
+  recent_territory_checks?: any[];
+  hot_regions?: string[];
+  canadian_referrals?: boolean;
+  international_referrals?: boolean;
+  corporate_address?: string;
+  
+  // Contact
+  website_url?: string;
+  schedule_call_url?: string;
+  
+  // Historical
+  founded_year?: number;
+  franchised_year?: number;
+  last_updated_from_source?: string;
+  last_scraped_at?: string;
+  
+  // Metadata
+  is_active?: boolean;
+  franchises_data?: any;
+  industry_awards?: IndustryAward[];
+  documents?: FranchiseDocuments;
+  resales_available?: boolean;
+  resales_list?: any[];
+  rating?: number;
+  support_training_details?: SupportTrainingDetails;
+}

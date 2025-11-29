@@ -74,8 +74,15 @@ async def get_franchise_territories(franchise_id: int):
             
             if city not in hierarchy[state]:
                 hierarchy[state][city] = []
-                
-            hierarchy[state][city].append(item)
+            
+            # Transform field names for frontend compatibility
+            # DB has raw_text and is_available, frontend expects location_raw and availability_status
+            transformed_item = {
+                **item,
+                "location_raw": item.get("raw_text", ""),
+                "availability_status": "Available" if item.get("is_available") else "Not Available"
+            }
+            hierarchy[state][city].append(transformed_item)
             
         return {
             "franchise_id": franchise_id,

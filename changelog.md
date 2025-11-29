@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-29] - Franchise Detail Page Enhancement & Territory Tab Fix
+
+### Added
+- **Enhanced FDD Overview**:
+  - **Franchise Packages Card**: Displays multiple franchise packages with fee, investment range, territories count, and descriptions (`frontend/src/app/franchises/[id]/page.tsx`).
+  - **Commission Structure Card**: Shows broker commission info for single unit, multi-unit, resales, and area developer opportunities.
+  - **Market Insights Card**: Displays market size, CAGR, growth period, demographics, and recession resistance from `market_growth_statistics` field.
+  - **Industry Awards Card**: Shows franchise awards and recognition with source, year, and award name badges.
+  - **Territory Quick View Card**: Displays hot regions, Canadian/international referral acceptance, and resales availability badges.
+  - **Documents & Resources Card**: Lists regular documents, client-focused resources, recent emails, and magazine articles with clickable links.
+  - **Schedule Call CTA**: Added prominent "Schedule a Call" button in header when `schedule_call_url` is available.
+
+- **Enhanced Financial Dashboard**:
+  - Added SBA Registered badge (separate from SBA Approved).
+  - Added Item 19 Earnings Guidance badge for franchises providing financial performance data.
+  - Added Additional Fees section showing extra costs beyond franchise fee.
+  - Added Financial Assistance Details section.
+
+- **Enhanced Ideal Candidate Card**:
+  - Now uses structured `ideal_candidate_profile` JSON when available (skills, personality traits, role of owner).
+  - Falls back to legacy `ideal_candidate_profile_text` if structured data unavailable.
+  - Skills and traits displayed as tags for better visual presentation.
+
+- **Enhanced Support & Training Card**:
+  - Now uses structured `support_training_details` JSON when available.
+  - Displays training cost inclusion, lodging/airfare, site selection help, lease negotiation help, mentor availability as visual badges.
+  - Shows mentoring duration and cost details.
+  - Falls back to legacy `franchises_data.support_and_training` if structured data unavailable.
+
+- **TypeScript Type Definitions**:
+  - Added comprehensive interfaces to `frontend/src/types/index.ts`:
+    - `TerritoryCheck`, `TerritoryData` for territory map
+    - `MarketGrowthStatistics`, `IdealCandidateProfile`, `SupportTrainingDetails`
+    - `IndustryAward`, `FranchiseDocuments`, `CommissionStructure`, `FranchisePackage`
+    - `FranchiseDetail` comprehensive interface for franchise data
+
+### Fixed
+- **Territory Availability Tab**:
+  - Fixed rendering error caused by field name mismatch between database and frontend.
+  - Backend now transforms `raw_text` → `location_raw` and `is_available` → `availability_status` string (`src/backend/franchises.py`).
+  - Added null safety checks in `FranchiseTerritoryMap.client.tsx` to handle missing/empty data gracefully.
+  - Component now shows empty state with helpful message when no territory data exists.
+
+- **Territory Map Component Rewrite**:
+  - Rewrote `frontend/src/components/FranchiseTerritoryMap.client.tsx` with full functionality.
+  - Added breadcrumb navigation showing: All States > State > City > ZIP.
+  - Clicking breadcrumb items navigates back up the hierarchy.
+  - Added proper drill-down from states → cities → zip codes.
+  - Fixed Leaflet "Map container already initialized" error with unique key on mount.
+  - Improved visual indicators for available (green) vs not available (red) territories.
+  - Added territory count badges at each level.
+
+### Changed
+- **Territory Data Backend**:
+  - Updated `/api/franchises/{id}/territories` endpoint to transform data for frontend compatibility (`src/backend/franchises.py`).
+
 ## [2025-11-25] - PDF Export Rewrite with jsPDF
 
 ### Added
