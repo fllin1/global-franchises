@@ -22,7 +22,10 @@ def supabase_client():
     """
     Initialize the Supabase client.
     """
-    load_dotenv()  # Load environment variables from .env file
+    # Load environment variables from .env and .env.local files
+    # .env.local takes precedence over .env
+    load_dotenv()  # Load .env first
+    load_dotenv(".env.local")  # Then load .env.local (overrides .env if exists)
 
     supabase_url = os.environ.get("SUPABASE_URL")
     supabase_key = os.environ.get("SUPABASE_KEY")

@@ -334,7 +334,9 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         return 'available';
     }, [data, getCountyAvailability]);
 
-    // Count checks in a state (defensive - handles malformed data)
+    // Count checks in a state (defensive - handles both 3-level and 4-level structures)
+    // 3-level: State -> City -> [Checks]  (when county is not present)
+    // 4-level: State -> County -> City -> [Checks]
     const getStateCheckCount = useCallback((state: string): number => {
         if (!data?.states?.[state]) return 0;
         let count = 0;
@@ -342,13 +344,18 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
             const stateData = data.states[state];
             if (typeof stateData !== 'object' || stateData === null) return 0;
             
-            Object.values(stateData).forEach(countyData => {
-                if (typeof countyData !== 'object' || countyData === null) return;
-                Object.values(countyData).forEach(cityChecks => {
-                    if (Array.isArray(cityChecks)) {
-                        count += cityChecks.length;
-                    }
-                });
+            Object.values(stateData).forEach(value => {
+                if (Array.isArray(value)) {
+                    // Direct array of checks (3-level: State -> City -> [Checks])
+                    count += value.length;
+                } else if (typeof value === 'object' && value !== null) {
+                    // Nested object (4-level: State -> County -> City -> [Checks])
+                    Object.values(value).forEach(cityChecks => {
+                        if (Array.isArray(cityChecks)) {
+                            count += cityChecks.length;
+                        }
+                    });
+                }
             });
         } catch (e) {
             console.error('Error counting state checks:', e);
@@ -357,19 +364,24 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         return count;
     }, [data]);
 
-    // Count checks in a county (defensive - handles malformed data)
+    // Count checks in a county (defensive - handles both direct arrays and nested city objects)
     const getCountyCheckCount = useCallback((state: string, county: string): number => {
         if (!data?.states?.[state]?.[county]) return 0;
         let count = 0;
         try {
             const countyData = data.states[state][county];
-            if (typeof countyData !== 'object' || countyData === null) return 0;
             
-            Object.values(countyData).forEach(cityChecks => {
-                if (Array.isArray(cityChecks)) {
-                    count += cityChecks.length;
-                }
-            });
+            if (Array.isArray(countyData)) {
+                // Direct array of checks (3-level structure)
+                count = countyData.length;
+            } else if (typeof countyData === 'object' && countyData !== null) {
+                // Nested city objects (4-level structure)
+                Object.values(countyData).forEach(cityChecks => {
+                    if (Array.isArray(cityChecks)) {
+                        count += cityChecks.length;
+                    }
+                });
+            }
         } catch (e) {
             console.error('Error counting county checks:', e);
             return 0;
@@ -377,11 +389,22 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         return count;
     }, [data]);
 
-    // Count checks in a city (defensive - handles malformed data)
+    // Count checks in a city (defensive - handles both direct city arrays and nested structures)
     const getCityCheckCount = useCallback((state: string, county: string, city: string): number => {
         try {
+            // Try 4-level path first: state -> county -> city -> [checks]
             const cityChecks = data?.states?.[state]?.[county]?.[city];
-            return Array.isArray(cityChecks) ? cityChecks.length : 0;
+            if (Array.isArray(cityChecks)) {
+                return cityChecks.length;
+            }
+            
+            // Try 3-level path: state -> city -> [checks] (county might be the city in 3-level)
+            const directChecks = data?.states?.[state]?.[city];
+            if (Array.isArray(directChecks)) {
+                return directChecks.length;
+            }
+            
+            return 0;
         } catch (e) {
             console.error('Error counting city checks:', e);
             return 0;

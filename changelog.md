@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-30] - Territory Normalization & Deduplication Pipeline
+
+### Added
+- **Schema Migration**:
+  - Added `country` column to `territory_checks` table (defaults to 'US', supports 'CA' for Canada)
+  - Added `is_resale` boolean column to track resale opportunities
+  - Created migration `docs/database/add_territory_normalization_fields.sql`
+  - Applied migration via `mcp_supabase_apply_migration`
+
+- **LLM Location Parser** (`src/backend/scripts/parse_territory_locations.py`):
+  - Parses `location_raw` into structured fields: city, state, county, zip_code, radius_miles
+  - Uses Gemini Flash with structured JSON output schema
+  - Handles edge cases:
+    - City/State: "Oakland, CA" → city=Oakland, state=CA, county=Alameda
+    - ZIP only: "33174" → zip=33174, city=Miami, state=FL, county=Miami-Dade
+    - ZIP + radius: "Livermore CA 94551 and 25 miles" → zip=94551, radius_miles=25
+    - County-only: "Orange County CA" → county=Orange, city=null
+    - Resale detection: "Amarillo TX resale" → is_resale=true
+    - International (Canada): "Oakville Ontario L6H4N8" → country=CA, state=ON
+  - **Multi-location splitting**: "Dallas or Amarillo, TX" creates 2 separate records
+  - Uses pgeocode for US/Canada zip code enrichment (city, county, lat/lon)
+
+- **Deduplication Script** (`src/backend/scripts/dedupe_territory_checks.py`):
+  - Implements geographic hierarchy rules: Zip ⊂ City ⊂ County ⊂ State
+  - **Dedup rules**:
+    - Status = "Not Available": Keep BROADER scope (city-level supersedes zip-level)
+    - Status = "Available": Keep SPECIFIC scope (zip-level more informative)
+    - Mixed status: Newer check_date always wins
+    - Exact duplicates: Keep record with most recent check_date
+  - Processes per-franchise to apply containment logic correctly
+  - Supports `--dry-run` for preview mode
+
+- **Backfill Orchestrator** (`src/backend/scripts/backfill_territory_normalization.py`):
+  - Combines migration check, parser, and deduplication into single pipeline
+  - Supports `--dry-run`, `--limit`, `--skip-parse`, `--skip-dedup`, `--franchise-id` options
+  - Reports: records parsed, split (multi-location), deduplicated
+  - Example: Franchise 50 reduced from 50 to 17 records (33 duplicates removed)
+
+- **Tests**:
+  - Created `tests/territory/test_location_parser.py` with comprehensive test cases
+  - Created `tests/territory/test_dedup_logic.py` for hierarchy-based dedup rules
+
+### Changed
+- **Territory Check Count**:
+  - Franchise 50 now shows 17 unique territory checks instead of 50 duplicates
+  - Total records: 26,140 → 26,150 (net +10 from splits minus dedup)
+  - Unparsed records: 9,810 → 9,744 (66 records parsed in initial batch)
+
 ## [2025-11-29] - City and ZIP Boundary Polygons for Territory Map
 
 ### Added

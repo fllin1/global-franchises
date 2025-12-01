@@ -13,3 +13,6 @@ CREATE INDEX IF NOT EXISTS idx_territory_checks_county ON territory_checks(count
 -- Comment for documentation
 COMMENT ON COLUMN territory_checks.county IS 'County name for territory check location (e.g., Harris County, Essex County)';
 
+
+
+

@@ -27,3 +27,6 @@ COMMENT ON INDEX contacts_franchise_email_unique_idx IS 'Unique constraint for u
 
 
 
+
+
+
