@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-12-02] - Territory Map Availability Badge Relocation
+
+### Changed
+- **Territory Map UI Enhancement** (`frontend/src/components/FranchiseTerritoryMap.client.tsx`):
+  - Moved the territory availability status badge (e.g., "California is fully Available") from the sidebar content area to the breadcrumb navigation bar
+  - Badge now displays inline after the last breadcrumb item for better visibility and consistent UI layout
+  - Extracted scope calculation logic into a dedicated `useMemo` hook for cleaner component structure
+  - Reduced badge size to fit inline with breadcrumbs (smaller padding, compact styling)
+
+---
+
 ## [2025-12-02] - Related Brands Section for Franchise Family
 
 ### Added

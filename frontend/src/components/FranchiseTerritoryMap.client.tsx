@@ -677,6 +677,34 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         return items;
     }, [selectedState, selectedCounty, selectedCity, selectedZip]);
 
+    // Scope availability check for current selection (used in breadcrumb area)
+    const { scopeCheck, scopeName } = useMemo(() => {
+        let check: TerritoryCheck | null = null;
+        let name = '';
+        
+        if (selectedState) {
+            const stateName = STATE_NAMES[selectedState] || selectedState;
+            
+            if (selectedCounty && selectedCounty !== UNSPECIFIED_COUNTY) {
+                if (selectedCity) {
+                    // City level - viewing zips/checks in a city
+                    check = getScopeCheck(selectedState, selectedCounty, selectedCity);
+                    name = check ? `${selectedCity}, ${selectedState}` : '';
+                } else {
+                    // County level - viewing cities in a county
+                    check = getScopeCheck(selectedState, selectedCounty);
+                    name = check ? `${selectedCounty}, ${selectedState}` : '';
+                }
+            } else {
+                // State level - viewing counties in a state
+                check = getScopeCheck(selectedState);
+                name = check ? stateName : '';
+            }
+        }
+        
+        return { scopeCheck: check, scopeName: name };
+    }, [selectedState, selectedCounty, selectedCity, getScopeCheck]);
+
     const handleBreadcrumbClick = useCallback((item: BreadcrumbItem) => {
         switch (item.type) {
             case 'all':
@@ -1336,44 +1364,6 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
 
     // Render sidebar content
     const renderSidebarContent = () => {
-        // Feature Tag: Show if current scope is fully covered by a parent-level check
-        let scopeCheck: TerritoryCheck | null = null;
-        let scopeName = '';
-        
-        if (selectedState) {
-            const stateName = STATE_NAMES[selectedState] || selectedState;
-            
-            if (selectedCounty && selectedCounty !== UNSPECIFIED_COUNTY) {
-                if (selectedCity) {
-                   // City level - viewing zips/checks in a city
-                   scopeCheck = getScopeCheck(selectedState, selectedCounty, selectedCity);
-                   scopeName = scopeCheck ? `${selectedCity}, ${selectedState}` : '';
-                } else {
-                   // County level - viewing cities in a county
-                   scopeCheck = getScopeCheck(selectedState, selectedCounty);
-                   scopeName = scopeCheck ? `${selectedCounty}, ${selectedState}` : '';
-                }
-            } else {
-                // State level - viewing counties in a state
-                scopeCheck = getScopeCheck(selectedState);
-                scopeName = scopeCheck ? stateName : '';
-            }
-        }
-
-        const featureTag = scopeCheck && scopeName ? (
-             <div className={`mb-2 mx-4 mt-2 px-4 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 ${
-                scopeCheck.availability_status === 'Available' 
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                    : 'bg-rose-50 text-rose-700 border border-rose-200'
-            }`}>
-                <div className={`w-2 h-2 rounded-full shrink-0 ${
-                    scopeCheck.availability_status === 'Available' ? 'bg-emerald-500' : 'bg-rose-500'
-                }`} />
-                <span>{scopeName} is fully {scopeCheck.availability_status === 'Available' ? 'Available' : 'Unavailable'}</span>
-            </div>
-        ) : null;
-
-
         // Level 1: Show ALL states (from STATE_NAMES)
         if (!selectedState) {
             return allStates.map(state => {
@@ -1418,7 +1408,6 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
             const counties = getCountiesInState(selectedState);
             return (
                 <>
-                    {featureTag}
                     {counties.map(county => {
                         const availability = getCountyAvailability(selectedState, county);
                         const colors = AVAILABILITY_COLORS[availability];
@@ -1466,7 +1455,6 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
             const cities = getCitiesInCounty(selectedState, selectedCounty);
             return (
                 <>
-                    {featureTag}
                     {cities.map(city => {
                         // Use the bottom-up getCityAvailability function
                         const status = getCityAvailability(selectedState, selectedCounty, city);
@@ -1512,7 +1500,6 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         if (availableZips.length > 1 && !selectedZip) {
             return (
                 <>
-                    {featureTag}
                     <button 
                         onClick={() => setSelectedZip(null)} 
                         className="w-full text-left px-4 py-3 border-b border-slate-200 bg-slate-50 hover:bg-slate-100 flex justify-between items-center"
@@ -1557,7 +1544,6 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
         // Level 5: Show territory check details
         return (
             <div className="divide-y divide-slate-100">
-                {featureTag}
                 {filteredList.map((item) => (
                     <div 
                         key={item.id} 
@@ -1614,6 +1600,18 @@ export default function FranchiseTerritoryMapClient({ data }: { data: TerritoryD
                             </button>
                         </div>
                     ))}
+                    {scopeCheck && scopeName && (
+                        <div className={`ml-3 px-2.5 py-1 rounded-md text-xs font-medium inline-flex items-center gap-1.5 ${
+                            scopeCheck.availability_status === 'Available' 
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        }`}>
+                            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                scopeCheck.availability_status === 'Available' ? 'bg-emerald-500' : 'bg-rose-500'
+                            }`} />
+                            <span>{scopeName} is fully {scopeCheck.availability_status === 'Available' ? 'Available' : 'Unavailable'}</span>
+                        </div>
+                    )}
                 </nav>
             </div>
 
