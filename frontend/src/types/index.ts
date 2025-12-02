@@ -320,6 +320,7 @@ export interface FranchiseDetail {
   // Family Brand relationship
   parent_family_brand_id?: number;
   family_brand?: FamilyBrand;
+  sibling_franchises?: SiblingFranchise[];
 }
 
 // --- Family of Brands Types ---
@@ -344,6 +345,16 @@ export interface FamilyBrandFranchise {
   primary_category?: string;
   description_text?: string;
   total_investment_min_usd?: number;
+  slug?: string;
+}
+
+/** Sibling franchise from the same family brand (used in "More from [Family]" section) */
+export interface SiblingFranchise {
+  id: number;
+  franchise_name: string;
+  primary_category?: string;
+  total_investment_min_usd?: number;
+  logo_url?: string;
   slug?: string;
 }
 

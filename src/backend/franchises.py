@@ -130,7 +130,7 @@ async def get_franchise_territories(franchise_id: int):
 async def get_franchise_detail(franchise_id: int):
     """
     Get full details for a specific franchise.
-    Includes family brand info if the franchise belongs to one.
+    Includes family brand info and sibling franchises if the franchise belongs to one.
     """
     try:
         logger.info(f"Fetching franchise details for ID: {franchise_id}")
@@ -143,7 +143,7 @@ async def get_franchise_detail(franchise_id: int):
         
         franchise = response.data[0]
         
-        # If franchise has a parent family brand, fetch the full family brand details
+        # If franchise has a parent family brand, fetch the full family brand details and sibling franchises
         if franchise.get("parent_family_brand_id"):
             family_response = supabase_client().table("family_of_brands") \
                 .select("id, name, source_id, website_url, logo_url") \
@@ -152,6 +152,17 @@ async def get_franchise_detail(franchise_id: int):
             
             if family_response.data:
                 franchise["family_brand"] = family_response.data[0]
+            
+            # Fetch sibling franchises (other franchises from the same family, excluding current)
+            siblings_response = supabase_client().table("franchises") \
+                .select("id, franchise_name, primary_category, total_investment_min_usd, logo_url, slug") \
+                .eq("parent_family_brand_id", franchise["parent_family_brand_id"]) \
+                .neq("id", franchise_id) \
+                .order("franchise_name") \
+                .limit(6) \
+                .execute()
+            
+            franchise["sibling_franchises"] = siblings_response.data or []
             
         return franchise
     except Exception as e:

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-12-02] - Related Brands Section for Franchise Family
+
+### Added
+- **"More from [Family Name]" Section** on franchise detail page:
+  - Displays sibling franchises from the same family brand
+  - Shows up to 6 related franchises with logo, name, category, and investment range
+  - Links to individual franchise pages and family brand overview
+  - Gradient violet/indigo styling to visually distinguish from other sections
+  - Only appears when franchise belongs to a family brand with other franchises
+
+### Changed
+- **Backend API** (`src/backend/franchises.py`):
+  - Extended `GET /api/franchises/{id}` to return `sibling_franchises` array when franchise belongs to a family
+  - Fetches up to 6 sibling franchises (excluding current), ordered alphabetically
+
+- **Frontend Types** (`frontend/src/types/index.ts`):
+  - Added `SiblingFranchise` interface for sibling franchise data
+  - Added `sibling_franchises` field to `FranchiseDetail` interface
+
+- **Franchise Detail Page** (`frontend/src/app/franchises/[id]/page.tsx`):
+  - Added `RelatedBrandsCard` component at the bottom of the overview tab
+  - Component renders responsive grid (1/2/3 columns) of sibling franchise cards
+
+---
+
 ## [2025-12-02] - Franchise Directory Table Redesign
 
 ### Changed

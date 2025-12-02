@@ -18,7 +18,7 @@ import { ContentList } from '@/components/ContentList';
 import type { 
     FranchiseDetail, MarketGrowthStatistics, IdealCandidateProfile, 
     SupportTrainingDetails, IndustryAward, FranchiseDocuments, 
-    CommissionStructure, FranchisePackage 
+    CommissionStructure, FranchisePackage, SiblingFranchise, FamilyBrand
 } from '@/types';
 
 export default function FranchiseDetailPage() {
@@ -417,6 +417,12 @@ export default function FranchiseDetailPage() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Related Brands from Same Family */}
+                        <RelatedBrandsCard 
+                            siblings={franchise.sibling_franchises}
+                            familyBrand={franchise.family_brand}
+                        />
                     </div>
                 ) : (
                     <div className="space-y-6">
@@ -1012,4 +1018,79 @@ function extractFileName(url: string): string {
     } catch {
         return url.length > 40 ? url.substring(0, 37) + '...' : url;
     }
+}
+
+function RelatedBrandsCard({ 
+    siblings, 
+    familyBrand 
+}: { 
+    siblings?: SiblingFranchise[]; 
+    familyBrand?: FamilyBrand;
+}) {
+    if (!siblings || siblings.length === 0 || !familyBrand) return null;
+
+    return (
+        <div className="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl border border-violet-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-violet-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Network className="w-5 h-5 text-violet-600" />
+                    <h2 className="font-bold text-slate-800">More from {familyBrand.name}</h2>
+                </div>
+                <Link 
+                    href={`/family-brands/${familyBrand.id}`}
+                    className="text-sm text-violet-600 hover:text-violet-800 font-medium flex items-center gap-1 transition-colors"
+                >
+                    View all brands
+                    <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+            </div>
+            <div className="p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {siblings.map((sibling) => (
+                        <Link
+                            key={sibling.id}
+                            href={`/franchises/${sibling.id}`}
+                            className="group bg-white rounded-lg border border-slate-200 p-4 hover:border-violet-300 hover:shadow-md transition-all"
+                        >
+                            <div className="flex items-start gap-3">
+                                {sibling.logo_url ? (
+                                    <div className="flex-shrink-0 w-12 h-12 bg-white rounded-lg border border-slate-100 overflow-hidden flex items-center justify-center p-1">
+                                        <Image
+                                            src={sibling.logo_url}
+                                            alt={`${sibling.franchise_name} logo`}
+                                            width={40}
+                                            height={40}
+                                            className="object-contain max-h-full max-w-full"
+                                            unoptimized
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="flex-shrink-0 w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
+                                        <Building2 className="w-5 h-5 text-slate-400" />
+                                    </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-semibold text-slate-900 text-sm group-hover:text-violet-700 transition-colors truncate">
+                                        {sibling.franchise_name}
+                                    </h3>
+                                    {sibling.primary_category && (
+                                        <p className="text-xs text-slate-500 mt-0.5 truncate">
+                                            {Array.isArray(sibling.primary_category) 
+                                                ? sibling.primary_category[0] 
+                                                : sibling.primary_category}
+                                        </p>
+                                    )}
+                                    {sibling.total_investment_min_usd && (
+                                        <p className="text-xs font-medium text-emerald-600 mt-1">
+                                            From ${sibling.total_investment_min_usd.toLocaleString()}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
 }
