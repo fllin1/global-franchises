@@ -5,6 +5,7 @@ from src.api.config.supabase_config import supabase_client
 from src.backend.search import search_franchises_by_state
 
 router = APIRouter(prefix="/api/franchises", tags=["franchises"])
+family_brands_router = APIRouter(prefix="/api/family-brands", tags=["family-brands"])
 
 @router.get("/search")
 async def search_franchises(q: Optional[str] = Query(None, min_length=0)):
@@ -129,15 +130,123 @@ async def get_franchise_territories(franchise_id: int):
 async def get_franchise_detail(franchise_id: int):
     """
     Get full details for a specific franchise.
+    Includes family brand info if the franchise belongs to one.
     """
     try:
         logger.info(f"Fetching franchise details for ID: {franchise_id}")
-        response = supabase_client().table("franchises").select("*").eq("id", franchise_id).execute()
+        
+        # Use the view that includes family brand info
+        response = supabase_client().table("franchises_with_family").select("*").eq("id", franchise_id).execute()
         
         if not response.data:
             raise HTTPException(status_code=404, detail="Franchise not found")
+        
+        franchise = response.data[0]
+        
+        # If franchise has a parent family brand, fetch the full family brand details
+        if franchise.get("parent_family_brand_id"):
+            family_response = supabase_client().table("family_of_brands") \
+                .select("id, name, source_id, website_url, logo_url") \
+                .eq("id", franchise["parent_family_brand_id"]) \
+                .execute()
             
-        return response.data[0]
+            if family_response.data:
+                franchise["family_brand"] = family_response.data[0]
+            
+        return franchise
     except Exception as e:
         logger.error(f"Error fetching franchise {franchise_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# Family Brands Endpoints
+# ============================================
+
+@family_brands_router.get("/")
+async def get_family_brands(q: Optional[str] = Query(None, min_length=0)):
+    """
+    Get all family brands with franchise counts.
+    Optional search by name.
+    """
+    try:
+        logger.info(f"Fetching family brands, query: {q}")
+        
+        # Get family brands
+        query_builder = supabase_client().table("family_of_brands") \
+            .select("id, name, source_id, website_url, contact_name, contact_phone, contact_email, logo_url, created_at")
+        
+        if q and len(q.strip()) > 0:
+            query_builder = query_builder.ilike("name", f"%{q}%")
+        
+        query_builder = query_builder.order("name")
+        response = query_builder.execute()
+        
+        family_brands = response.data or []
+        
+        # Get franchise counts for each family brand
+        if family_brands:
+            family_brand_ids = [fb["id"] for fb in family_brands]
+            
+            # Count franchises per family brand
+            count_response = supabase_client().rpc(
+                "count_franchises_per_family_brand",
+                {"family_brand_ids": family_brand_ids}
+            ).execute()
+            
+            # If RPC doesn't exist, fall back to manual counting
+            if count_response.data:
+                counts = {item["family_brand_id"]: item["count"] for item in count_response.data}
+            else:
+                # Fallback: query franchises table directly
+                counts = {}
+                for fb_id in family_brand_ids:
+                    count_resp = supabase_client().table("franchises") \
+                        .select("id", count="exact") \
+                        .eq("parent_family_brand_id", fb_id) \
+                        .execute()
+                    counts[fb_id] = count_resp.count or 0
+            
+            # Attach counts to family brands
+            for fb in family_brands:
+                fb["franchise_count"] = counts.get(fb["id"], 0)
+        
+        return family_brands
+    except Exception as e:
+        logger.error(f"Error fetching family brands: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@family_brands_router.get("/{family_brand_id}")
+async def get_family_brand_detail(family_brand_id: int):
+    """
+    Get detailed info for a specific family brand including all representing franchises.
+    """
+    try:
+        logger.info(f"Fetching family brand details for ID: {family_brand_id}")
+        
+        # Get family brand details
+        response = supabase_client().table("family_of_brands") \
+            .select("*") \
+            .eq("id", family_brand_id) \
+            .execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Family brand not found")
+        
+        family_brand = response.data[0]
+        
+        # Get all franchises belonging to this family brand
+        franchises_response = supabase_client().table("franchises") \
+            .select("id, franchise_name, primary_category, description_text, total_investment_min_usd, slug") \
+            .eq("parent_family_brand_id", family_brand_id) \
+            .order("franchise_name") \
+            .execute()
+        
+        family_brand["franchises"] = franchises_response.data or []
+        family_brand["franchise_count"] = len(family_brand["franchises"])
+        
+        return family_brand
+    except Exception as e:
+        logger.error(f"Error fetching family brand {family_brand_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))

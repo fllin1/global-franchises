@@ -270,6 +270,22 @@ async def parse_location_with_llm(
     return []
 
 
+def is_valid_city_name(city: Optional[str]) -> bool:
+    """
+    Validate that a city name is not purely numeric.
+    
+    Args:
+        city: City name to validate
+        
+    Returns:
+        True if city is valid (not None and not purely numeric)
+    """
+    if not city:
+        return False
+    # Reject if city contains only digits
+    return not bool(re.match(r'^[0-9]+$', str(city).strip()))
+
+
 def enrich_with_geocode(location: Dict[str, Any]) -> Dict[str, Any]:
     """
     Enrich a parsed location with data from pgeocode.
@@ -306,7 +322,7 @@ def enrich_with_geocode(location: Dict[str, Any]) -> Dict[str, Any]:
         
         if not location.get("city"):
             place_name = getattr(geo, 'place_name', None)
-            if place_name and str(place_name) != 'nan':
+            if place_name and str(place_name) != 'nan' and is_valid_city_name(place_name):
                 location["city"] = place_name
         
         if not location.get("state_code"):
@@ -393,11 +409,17 @@ async def update_record_with_parsed_data(
     Returns:
         True if successful
     """
+    # Validate city before storing (reject numeric-only values)
+    city = parsed.get("city")
+    if city and not is_valid_city_name(city):
+        logger.warning(f"Rejected numeric city value '{city}' for record {record_id}")
+        city = None
+    
     update_data = {
         "country": parsed.get("country", "US"),
         "state_code": parsed.get("state_code"),
         "county": parsed.get("county"),
-        "city": parsed.get("city"),
+        "city": city,
         "zip_code": parsed.get("zip_code"),
         "radius_miles": parsed.get("radius_miles"),
         "is_resale": parsed.get("is_resale", False),
@@ -440,15 +462,21 @@ async def insert_split_record(
     Returns:
         ID of the new record, or None if failed
     """
+    # Validate city before storing (reject numeric-only values)
+    city = parsed.get("city")
+    if city and not is_valid_city_name(city):
+        logger.warning(f"Rejected numeric city value '{city}' for split record")
+        city = None
+    
     insert_data = {
         "franchise_id": original_record["franchise_id"],
-        "location_raw": f"{parsed.get('city') or parsed.get('county') or ''}, {parsed.get('state_code') or ''}".strip(", "),
+        "location_raw": f"{city or parsed.get('county') or ''}, {parsed.get('state_code') or ''}".strip(", "),
         "availability_status": original_record.get("availability_status"),
         "check_date": original_record.get("check_date"),
         "country": parsed.get("country", "US"),
         "state_code": parsed.get("state_code"),
         "county": parsed.get("county"),
-        "city": parsed.get("city"),
+        "city": city,
         "zip_code": parsed.get("zip_code"),
         "radius_miles": parsed.get("radius_miles"),
         "is_resale": parsed.get("is_resale", False),

@@ -23,3 +23,5 @@ COMMENT ON COLUMN franchises.llm_processed_at IS 'Timestamp when franchise was p
 
 
 
+
+

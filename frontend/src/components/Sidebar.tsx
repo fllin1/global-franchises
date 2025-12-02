@@ -9,6 +9,7 @@ import {
   Users, 
   Map, 
   Building,
+  Network,
   Settings, 
   Sparkles,
   Sun,
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'My Leads', href: '/leads', icon: Users },
   { name: 'Franchises', href: '/franchises', icon: Building },
+  { name: 'Family Brands', href: '/family-brands', icon: Network },
   { name: 'Territory Map', href: '/territory', icon: Map },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

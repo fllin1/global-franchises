@@ -7,6 +7,218 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-12-02] - Family of Brands Frontend Feature
+
+### Added
+- **Family Brands Frontend Pages**:
+  - Created `/family-brands` list page with search/filter functionality
+  - Created `/family-brands/[id]` detail page showing family brand info and all representing franchises
+  - Table/list view with logo, name, franchise count, website link, and action buttons
+
+- **Backend API Endpoints** (`src/backend/franchises.py`):
+  - `GET /api/family-brands/` - List all family brands with franchise counts
+  - `GET /api/family-brands/{id}` - Get family brand details with all representing franchises
+  - Updated `GET /api/franchises/{id}` to include family brand info via `franchises_with_family` view
+
+- **Frontend Types** (`frontend/src/types/index.ts`):
+  - Added `FamilyBrand` interface for list views
+  - Added `FamilyBrandFranchise` interface for representing brands
+  - Added `FamilyBrandDetail` interface extending `FamilyBrand` with franchises array
+  - Extended `FranchiseDetail` with `parent_family_brand_id` and `family_brand` properties
+
+- **Frontend Actions** (`frontend/src/app/franchises/actions.ts`):
+  - Added `getFamilyBrands(query?)` - Fetch all family brands with optional search
+  - Added `getFamilyBrandDetail(id)` - Fetch single family brand with franchises
+
+- **Franchise Detail Page Enhancement**:
+  - Added "Part of [Family Brand]" badge in header for franchises belonging to a family
+  - Badge links directly to the family brand detail page
+  - Uses violet color scheme to distinguish from other badges
+
+- **Sidebar Navigation** (`frontend/src/components/Sidebar.tsx`):
+  - Added "Family Brands" nav item with Network icon
+  - Positioned between "Franchises" and "Territory Map"
+
+### Technical Details
+- Family brands list supports real-time search with 300ms debounce
+- Stats bar shows total family brands and total linked franchises
+- Detail page displays contact info (name, phone, email) when available
+- Franchise cards in family brand detail show category, description, and min investment
+- Full dark mode support across all new pages
+
+---
+
+## [2025-12-02] - Family of Brands Feature
+
+### Added
+- **Family of Brands Database Schema**:
+  - Created `family_of_brands` table to store parent brand entities (e.g., Driven Brands, Neighborly, Authority Brands)
+  - Added `parent_family_brand_id` foreign key to `franchises` table to link franchises to their parent family brands
+  - Created `franchises_with_family` view for convenient querying
+  - Migration: `docs/database/add_family_of_brands_tables.sql`
+
+- **Family of Brands Scraper** (`src/data/franserve/family_brands_scraper.py`):
+  - `get_family_brands_list()`: Fetches all family brands from AJAX endpoint
+  - `scrape_family_brand_page()`: Scrapes individual family brand detail pages
+  - `parse_family_brand_html()`: Parses HTML to extract family brand data
+  - `extract_representing_brands()`: Extracts list of franchise brands in each family
+  - `save_family_brand_to_db()`: Upserts family brand records
+  - `link_franchises_to_family_brand()`: Links franchises to their parent family brand
+
+- **CLI Script** (`src/backend/scripts/run_family_brands_scraper.py`):
+  - `--list-only`: Lists all family brands without scraping details
+  - `--single FRAN_ID`: Scrapes a single family brand by FranID
+  - `--stats`: Shows database statistics for family brands
+  - Default: Full scrape of all family brands
+
+### Results
+- Successfully scraped 33 family brands
+- Linked 154 franchises (19% of total) to their parent family brands
+- Top family brands by franchise count: Neighborly (18), Authority Brands (14), Belfor Franchise Group (11)
+
+## [2025-12-01] - Enhanced Hierarchical Territory Availability Logic
+
+### Added
+- **Hierarchical Override System for Territory Availability**:
+  - Implemented a new availability calculation system where `unavailable_states` from franchise data provides the **default** state-level availability.
+  - Territory checks can now **override** this default to create "mixed" (yellow) status:
+    - If a state is in `unavailable_states` but has ANY "Available" territory check → shows as "mixed"
+    - If a state is NOT in `unavailable_states` but has ANY "Not Available" territory check → shows as "mixed"
+  - Sub-regions (counties, cities) without explicit territory checks now **inherit** from the parent state's default status.
+
+- **New Helper Functions** (`FranchiseTerritoryMap.client.tsx`):
+  - `isStateDefaultUnavailable(stateCode)`: Checks if state is in franchise's `unavailable_states` array
+  - `getAllChecksInState(stateCode)`: Flattens territory check hierarchy to get all checks for a state
+  - `stateHasAnyAvailableCheck(stateCode)`: Checks if state has any "Available" territory check
+  - `stateHasAnyUnavailableCheck(stateCode)`: Checks if state has any "Not Available" territory check
+
+- **Documentation**:
+  - Created `docs/TERRITORY_AVAILABILITY_LOGIC.md` with comprehensive documentation of the availability system
+  - Includes visual diagrams, logic flowcharts, and testing scenarios
+
+### Changed
+- **State Availability Logic** (`getStateAvailability`):
+  - Now uses default + override pattern instead of simple aggregation
+  - States in `unavailable_states` remain red UNLESS they have an Available check (then mixed)
+  - States NOT in `unavailable_states` remain green UNLESS they have an Unavailable check (then mixed)
+
+- **County Availability Logic** (`getCountyAvailability`):
+  - Counties with territory checks use existing aggregation logic
+  - Counties WITHOUT territory checks now inherit from state's default status
+  - Previously defaulted to "available" regardless of parent state
+
+- **City Availability Logic** (`getCityAvailability`):
+  - Cities with territory checks use existing aggregation logic
+  - Cities WITHOUT territory checks now inherit from state's default status
+  - Previously defaulted to "available" regardless of parent state
+
+### Fixed
+- **Illinois (Franchise 626) Now Shows Correctly**:
+  - IL is in `unavailable_states` (default: red)
+  - IL has Naperville (Available) and Chicago (Not Available) checks
+  - IL now shows as yellow/mixed instead of all red
+  - When drilling into IL, counties without checks show as red (inherit default)
+
+- **Data Structure Handling**:
+  - Fixed `getAllChecksInState` to handle both 3-level and 4-level data structures
+  - Handles cases where API returns checks directly under city keys vs nested under county keys
+
+### Example
+For Franchise 626:
+| State | In unavailable_states? | Has Available Check? | Result |
+|-------|----------------------|---------------------|--------|
+| IL | Yes | Yes (Naperville) | Mixed 🟡 |
+| VA | Yes | No | Unavailable 🔴 |
+| TX | No | - | Available 🟢 |
+| NC | No | - | Available 🟢 |
+
+## [2025-12-01] - Fix Numeric City Values in Territory Checks
+
+### Fixed
+- **Territory Map Displaying Numbers Instead of City Names**:
+  - Fixed issue where territory map UI was displaying numbers (0, 1, 2, 3, 4) instead of city names.
+  - Root cause: Some records in `territory_checks` table had numeric strings stored in the `city` field instead of actual city names.
+  - Solutions implemented:
+    1. Created diagnostic script (`src/backend/scripts/diagnose_numeric_cities.py`) to identify affected records
+    2. Created cleanup script (`src/backend/scripts/fix_numeric_cities.py`) to fix existing records by:
+       - Extracting city names from `location_raw` using regex patterns
+       - Using LLM parsing to extract city from `location_raw` if regex fails
+       - Looking up city from `zip_code` using pgeocode
+       - Setting city to NULL if none of the above methods work (displays as "Unspecified Area")
+    3. Added validation to prevent future issues:
+       - `is_valid_city_name()` function added to reject numeric-only city values
+       - Validation added to `parse_territory_check()` in `field_mapper.py`
+       - Validation added to `enrich_with_geocode()`, `update_record_with_parsed_data()`, and `insert_split_record()` in `parse_territory_locations.py`
+       - Validation added to `process_batch()` in `normalize_territories.py`
+    4. Added frontend filtering in `FranchiseTerritoryMap.client.tsx` to filter out numeric city values as a safety measure
+  - Modified files:
+    - `src/backend/scripts/diagnose_numeric_cities.py` (new)
+    - `src/backend/scripts/fix_numeric_cities.py` (new)
+    - `src/data/functions/field_mapper.py` - Added validation
+    - `src/backend/scripts/parse_territory_locations.py` - Added validation
+    - `src/backend/scripts/normalize_territories.py` - Added validation
+    - `frontend/src/components/FranchiseTerritoryMap.client.tsx` - Added filtering
+
+## [2025-12-01] - Fix Territory Map Unavailable States Display
+
+### Fixed
+- **Territory Map Now Correctly Shows Unavailable States**:
+  - Fixed bug where states in the franchise's `unavailable_states` array (e.g., CA, CT, HI, IL, IN, MD, MN, NY, RI, UT, VA, WA) were shown as green/available on the map.
+  - Root causes identified and fixed:
+    1. The map rendering logic only called `getStateAvailability()` for states with territory check data
+    2. The production territories API does not return `unavailable_states` in the response
+  - Solutions applied:
+    1. Always call `getStateAvailability()` for all states regardless of territory check data
+    2. Pass `unavailable_states` from franchise data as fallback when territories API doesn't include it
+  - Modified files:
+    - `frontend/src/components/FranchiseTerritoryMap.client.tsx` - Always call availability function
+    - `frontend/src/app/franchises/[id]/page.tsx` - Merge `unavailable_states` from franchise data into territory data
+  - The Territory Overview card and map header already displayed unavailable states correctly; now the map visualization matches.
+
+## [2025-12-01] - Territory Map Full Geographic Lists
+
+### Added
+- **Show All States, Counties, and Cities in Territory Map**:
+  - The sidebar now displays ALL 50+ US states, not just those with territory check data.
+  - States are sorted with data-having states first (by check count), then alphabetically.
+  - Counties are now loaded from GeoJSON files (`/geo/counties/{STATE}.geojson`) and merged with territory data.
+  - Cities are loaded from GeoJSON files (CA, FL, NJ, NY, TX only) when available, merged with territory data.
+  - All geographic areas (states/counties/cities) are now navigable regardless of whether they have territory checks.
+
+- **New Helper Functions** (`FranchiseTerritoryMap.client.tsx`):
+  - `allStates`: Returns all states from `STATE_NAMES`, sorted with data states first.
+  - Updated `getCountiesInState()`: Extracts counties from loaded county GeoJSON, merges with territory data.
+  - Updated `getCitiesInCounty()`: Extracts cities from city GeoJSON when available, merges with territory data.
+
+### Changed
+- **Click Handlers Allow Navigation Without Data**:
+  - All states are now clickable on the map, even those without territory checks.
+  - All counties are now clickable, navigating to city view even without checks.
+  - All cities are now clickable, navigating to ZIP view even without checks.
+  
+- **Sidebar Display Updates**:
+  - Items without territory data show "0 checks" with a lighter styling.
+  - Subtitle now shows "52 states (X with data)" instead of just "X states with data".
+  - Counties and cities without data display with muted badge styling.
+
+- **Availability Logic**:
+  - Areas without territory data now show as "available" (green) instead of "neutral" (gray).
+  - This follows the principle that "no data = available" for territory checks.
+
+### Removed
+- Removed empty state check - map now renders even when no territory data exists.
+- Removed `hasData` guards that prevented clicking on states without territory checks.
+
+## [2025-12-01] - Territory Map Hover Zoom Fix
+
+### Fixed
+- **Territory Map Zoom Reset on Hover**:
+  - Fixed issue where hovering over map zones (states, counties, cities, ZIPs) would reset the map to base zoom level.
+  - Root cause: `hoveredItem` was included in the dependency arrays of the layer-rendering `useEffect` hooks, causing them to re-run and call `fitBounds()`/`setView()` on every hover.
+  - Solution: Removed `hoveredItem` from layer-rendering effect dependencies in `FranchiseTerritoryMap.client.tsx`.
+  - Changed initial polygon style to always use `isHovered = false` since the dedicated hover effect (lines 1050-1092) handles hover style updates.
+  - Map now only resets zoom when navigating via sidebar selections (state/county/city), not when hovering on the map.
+
 ## [2025-11-30] - Territory Normalization & Deduplication Pipeline
 
 ### Added

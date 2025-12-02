@@ -9,7 +9,7 @@ import {
     ArrowLeft, Map as MapIcon, FileText, Loader2, Info, ExternalLink, Building2, 
     Wallet, CheckCircle2, XCircle, Globe, Users, Briefcase, Award, GraduationCap, 
     Lightbulb, ArrowRightLeft, Calendar, TrendingUp, FileDown, MapPin, Star,
-    DollarSign, Package, Percent, ShieldCheck, Flame, Plane
+    DollarSign, Package, Percent, ShieldCheck, Flame, Plane, Network
 } from 'lucide-react';
 import FranchiseTerritoryMap from '@/components/FranchiseTerritoryMap';
 import { useComparison } from '@/contexts/ComparisonContext';
@@ -123,6 +123,15 @@ export default function FranchiseDetailPage() {
                                     <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide border border-indigo-100">
                                         {franchise.business_model_type}
                                     </span>
+                                )}
+                                {franchise.family_brand && (
+                                    <Link 
+                                        href={`/family-brands/${franchise.family_brand.id}`}
+                                        className="inline-flex items-center gap-1.5 bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-violet-100 hover:bg-violet-100 transition-colors"
+                                    >
+                                        <Network className="w-3.5 h-3.5" />
+                                        Part of {franchise.family_brand.name}
+                                    </Link>
                                 )}
                             </div>
                             
@@ -412,7 +421,12 @@ export default function FranchiseDetailPage() {
                          <div className="h-[600px] bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex">
                             {/* Interactive Map Component */}
                             <div className="flex-1 relative">
-                                <FranchiseTerritoryMap data={territoryData} />
+                                <FranchiseTerritoryMap data={{
+                                    ...territoryData,
+                                    // Merge unavailable_states from franchise data as fallback
+                                    // (territories API may not return it in production)
+                                    unavailable_states: territoryData?.unavailable_states || franchise.unavailable_states
+                                }} />
                             </div>
                         </div>
                     </div>

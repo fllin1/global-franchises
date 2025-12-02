@@ -314,4 +314,38 @@ export interface FranchiseDetail {
   resales_list?: any[];
   rating?: number;
   support_training_details?: SupportTrainingDetails;
+  
+  // Family Brand relationship
+  parent_family_brand_id?: number;
+  family_brand?: FamilyBrand;
+}
+
+// --- Family of Brands Types ---
+
+export interface FamilyBrand {
+  id: number;
+  name: string;
+  source_id: number;
+  website_url?: string;
+  contact_name?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  logo_url?: string;
+  franchise_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FamilyBrandFranchise {
+  id: number;
+  franchise_name: string;
+  primary_category?: string;
+  description_text?: string;
+  total_investment_min_usd?: number;
+  slug?: string;
+}
+
+export interface FamilyBrandDetail extends FamilyBrand {
+  franchises: FamilyBrandFranchise[];
+  last_updated_from_source?: string;
 }

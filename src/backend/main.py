@@ -12,7 +12,7 @@ from src.backend.search import hybrid_search, search_franchises_by_state
 from src.backend.narrator import generate_match_narratives
 
 from src.backend.leads import router as leads_router
-from src.backend.franchises import router as franchises_router
+from src.backend.franchises import router as franchises_router, family_brands_router
 from src.backend.comparison import router as comparison_router
 
 app = FastAPI(title="Franchise Matcher API")
@@ -56,6 +56,7 @@ async def shutdown_event():
 # Include Routers
 app.include_router(leads_router)
 app.include_router(franchises_router)
+app.include_router(family_brands_router)
 app.include_router(comparison_router)
 
 # CORS configuration

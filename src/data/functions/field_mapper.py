@@ -462,6 +462,22 @@ def lookup_zip_with_pgeocode(zip_code: str) -> Tuple[Optional[str], Optional[str
         return None, None, None, None, None
 
 
+def is_valid_city_name(city: Optional[str]) -> bool:
+    """
+    Validate that a city name is not purely numeric.
+    
+    Args:
+        city: City name to validate
+        
+    Returns:
+        True if city is valid (not None and not purely numeric)
+    """
+    if not city:
+        return False
+    # Reject if city contains only digits
+    return not bool(re.match(r'^[0-9]+$', str(city).strip()))
+
+
 def parse_territory_check(
     check: Dict[str, Any],
     franchise_id: int,
@@ -512,7 +528,7 @@ def parse_territory_check(
     
     if zip_code:
         pgeo_city, pgeo_state, pgeo_county, latitude, longitude = lookup_zip_with_pgeocode(zip_code)
-        if pgeo_city:
+        if pgeo_city and is_valid_city_name(pgeo_city):
             city = pgeo_city
         # If we didn't extract state from text but got it from pgeocode, use that
         if not state_code and pgeo_state:
@@ -539,6 +555,13 @@ def parse_territory_check(
             check_date = parsed_date.isoformat()
         except ValueError:
             pass
+    
+    # Validate city before storing (reject numeric-only values)
+    if city and not is_valid_city_name(city):
+        # Log warning but don't fail - set city to None instead
+        # Note: Using print since loguru logger may not be available in this module
+        print(f"Warning: Rejected numeric city value '{city}' for location '{location_raw}'")
+        city = None
     
     # Build the record
     record = {

@@ -104,6 +104,11 @@ Main table storing franchise information and metadata.
 | `rating` | `numeric(3,2)` | Star rating (1-5) if available |
 | `support_training_details` | `jsonb` | Structured training info (program_description, cost_included, cost_details, lodging_airfare_included, site_selection_assistance, lease_negotiation_assistance, mentor_available, mentoring_length) |
 
+**Family Brand Relationship:**
+| Column | Type | Description |
+|--------|------|-------------|
+| `parent_family_brand_id` | `bigint` | Foreign key to `family_of_brands` table. Links franchise to its parent family brand (nullable) |
+
 **Indexes:**
 - Primary key on `id`
 - Unique constraint on `source_id`
@@ -116,6 +121,34 @@ Main table storing franchise information and metadata.
 - One-to-many with `franchise_categories`
 - One-to-many with `contacts`
 - One-to-many with `territory_checks`
+- Many-to-one with `family_of_brands` (via `parent_family_brand_id`)
+
+---
+
+#### `family_of_brands`
+Parent brand entities that contain multiple franchise brands (e.g., Driven Brands, Neighborly, Authority Brands).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | `bigint` | Primary key (auto-increment) |
+| `name` | `text` | Name of the family brand (e.g., "Driven Brands") |
+| `source_id` | `integer` | FranID from FranServe URL (unique) |
+| `website_url` | `text` | Family brand website URL |
+| `contact_name` | `text` | Primary contact name |
+| `contact_phone` | `text` | Contact phone number |
+| `contact_email` | `text` | Contact email address |
+| `logo_url` | `text` | URL to the family brand logo |
+| `last_updated_from_source` | `date` | Last update date from source |
+| `created_at` | `timestamptz` | Record creation timestamp |
+| `updated_at` | `timestamptz` | Record update timestamp (auto-updated via trigger) |
+
+**Indexes:**
+- Primary key on `id`
+- Unique constraint on `source_id`
+- Index on `name` for search
+
+**Relationships:**
+- One-to-many with `franchises` (via `franchises.parent_family_brand_id`)
 
 ---
 

@@ -92,6 +92,13 @@ def get_lat_lon_from_zip(zip_code: str):
         return float(geo.latitude), float(geo.longitude), geo.place_name, geo.state_code
     return None, None, None, None
 
+def is_valid_city_name(city: str) -> bool:
+    """Validate that a city name is not purely numeric."""
+    if not city:
+        return False
+    return not bool(re.match(r'^[0-9]+$', str(city).strip()))
+
+
 async def process_batch():
     items = await fetch_unprocessed_territories(limit=50)
     if not items:
@@ -121,7 +128,13 @@ async def process_batch():
         # If we have a zip, use it
         if zip_code:
             lat, lon, place_name, state_res = get_lat_lon_from_zip(zip_code)
-            if not city and place_name: city = place_name
+            if not city and place_name and is_valid_city_name(place_name):
+                city = place_name
+        
+        # Validate city before storing (reject numeric-only values)
+        if city and not is_valid_city_name(city):
+            logger.warning(f"Rejected numeric city value '{city}' for location '{raw}'")
+            city = None
         
         # If no zip but we have city/state, we need a zip to get lat/lon via pgeocode
         # We can't easily do City -> Zip with pgeocode alone.
