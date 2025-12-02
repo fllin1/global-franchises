@@ -186,26 +186,18 @@ async def get_family_brands(q: Optional[str] = Query(None, min_length=0)):
         
         # Get franchise counts for each family brand
         if family_brands:
-            family_brand_ids = [fb["id"] for fb in family_brands]
+            # Get all franchises with parent_family_brand_id in one query
+            franchises_response = supabase_client().table("franchises") \
+                .select("parent_family_brand_id") \
+                .not_.is_("parent_family_brand_id", "null") \
+                .execute()
             
             # Count franchises per family brand
-            count_response = supabase_client().rpc(
-                "count_franchises_per_family_brand",
-                {"family_brand_ids": family_brand_ids}
-            ).execute()
-            
-            # If RPC doesn't exist, fall back to manual counting
-            if count_response.data:
-                counts = {item["family_brand_id"]: item["count"] for item in count_response.data}
-            else:
-                # Fallback: query franchises table directly
-                counts = {}
-                for fb_id in family_brand_ids:
-                    count_resp = supabase_client().table("franchises") \
-                        .select("id", count="exact") \
-                        .eq("parent_family_brand_id", fb_id) \
-                        .execute()
-                    counts[fb_id] = count_resp.count or 0
+            counts: Dict[int, int] = {}
+            for f in (franchises_response.data or []):
+                fb_id = f.get("parent_family_brand_id")
+                if fb_id:
+                    counts[fb_id] = counts.get(fb_id, 0) + 1
             
             # Attach counts to family brands
             for fb in family_brands:

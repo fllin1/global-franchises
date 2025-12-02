@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Franchise cards in family brand detail show category, description, and min investment
 - Full dark mode support across all new pages
 
+### Fixed
+- Removed reliance on non-existent RPC function `count_franchises_per_family_brand`
+- Franchise counts now calculated efficiently by fetching all linked franchises in a single query
+
 ---
 
 ## [2025-12-02] - Family of Brands Feature
