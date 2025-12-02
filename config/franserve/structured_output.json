@@ -31,6 +31,10 @@
           "type": "string",
           "description": "The main website of the franchise. Extract from '**Website:**' field. Include full URL with http:// or https:// (e.g., 'http://aplaceathome.com/franchise/')."
         },
+        "logo_url": {
+          "type": "string",
+          "description": "URL to the franchise logo image. Look for img tag with src containing 'images/logos/' in the right column. Prepend 'https://franservesupport.com/' to the relative path (e.g., 'https://franservesupport.com/images/logos/1800RadiatorAC.jpg')."
+        },
         "founded_year": {
           "type": "integer",
           "description": "The year the company was founded. Extract from BACKGROUND section 'Year founded:' field (e.g., 2012)."

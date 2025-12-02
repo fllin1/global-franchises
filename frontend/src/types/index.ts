@@ -58,6 +58,7 @@ export interface FranchiseMatch {
   why_narrative: string; // AI Generated explanation for the broker
   unavailable_states?: string[]; // JSON list of states where this franchise is NOT available
   primary_category?: string;
+  logo_url?: string;
 }
 
 export interface AnalysisResponse {
@@ -297,6 +298,7 @@ export interface FranchiseDetail {
   
   // Contact
   website_url?: string;
+  logo_url?: string;
   schedule_call_url?: string;
   
   // Historical

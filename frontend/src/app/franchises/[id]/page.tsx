@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { getFranchiseDetail } from '@/app/actions';
 import { getFranchiseTerritories } from '../actions';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
     ArrowLeft, Map as MapIcon, FileText, Loader2, Info, ExternalLink, Building2, 
     Wallet, CheckCircle2, XCircle, Globe, Users, Briefcase, Award, GraduationCap, 
@@ -110,7 +111,21 @@ export default function FranchiseDetailPage() {
                     </div>
                     
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-                        <div>
+                        <div className="flex items-start gap-5">
+                            {/* Franchise Logo */}
+                            {franchise.logo_url && (
+                                <div className="flex-shrink-0 w-20 h-20 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex items-center justify-center p-2">
+                                    <Image
+                                        src={franchise.logo_url}
+                                        alt={`${franchise.franchise_name} logo`}
+                                        width={72}
+                                        height={72}
+                                        className="object-contain max-h-full max-w-full"
+                                        unoptimized
+                                    />
+                                </div>
+                            )}
+                            <div>
                             <div className="flex items-center gap-3 mb-2">
                                 <h1 className="text-3xl font-bold text-slate-900">{franchise.franchise_name}</h1>
                                 {franchise.rating && (
@@ -152,6 +167,7 @@ export default function FranchiseDetailPage() {
                                         {franchise.corporate_address}
                                     </span>
                                 )}
+                            </div>
                             </div>
                         </div>
                         <div className="text-right">

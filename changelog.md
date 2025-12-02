@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-12-02] - Franchise Directory Table Redesign
+
+### Changed
+- **Franchise Directory Page Redesign** (`frontend/src/app/franchises/page.tsx`):
+  - Converted from card grid layout to clean table layout matching the Family Brands page aesthetic
+  - Added header icon badge with Building icon in indigo background
+  - Added stats bar showing total franchise count and selected count for comparison
+  - Added table columns: Select (checkbox), Franchise (logo + name), Category, Min Investment, Action
+  - Added full dark mode support with proper color variants
+  - Added logo display in franchise column using Next.js Image component with fallback icon on error
+  - Left-aligned search bar (previously centered)
+  - Increased max width from 5xl to 6xl for better table display
+  - Preserved comparison checkbox functionality (moved to first table column)
+  - Added "Compare" button in stats bar when franchises are selected
+
+- **Frontend Types** (`frontend/src/types/index.ts`):
+  - Added `logo_url?: string` field to `FranchiseMatch` interface
+
+- **Search Franchises Action** (`frontend/src/app/franchises/actions.ts`):
+  - Now maps `logo_url` from API response to support logo display in directory
+
+- **Backend API** (`src/backend/franchises.py`):
+  - Added `logo_url` to the select statement in `/api/franchises/search` endpoint to return logo URLs in search results
+
+---
+
+## [2025-12-02] - Franchise Logo URL Support
+
+### Added
+- **Database Schema**: Added `logo_url` column to `franchises` table for storing franchise brand logos
+- **Database View**: Updated `franchises_with_family` view to include `logo_url` column
+- **LLM Extraction Schema**: Updated `config/franserve/structured_output.json` to extract logo URLs from franchise pages
+- **HTML Formatter**: Updated `src/data/franserve/html_formatter.py` to parse logo images from `images/logos/` path
+- **Backfill Script**: Created `src/backend/scripts/backfill_logo_urls.py` to populate logo URLs for existing franchises
+- **Frontend Types**: Added `logo_url` to `FranchiseDetail` type in `frontend/src/types/index.ts`
+- **Frontend Display**: Updated franchise detail page header to display logo alongside franchise name
+
+### Technical Details
+- Logo URLs are extracted from `<img src='images/logos/...'>` tags in franchise HTML pages
+- Full URLs are constructed by prepending `https://franservesupport.com/` to relative paths
+- Backfill script reads HTML from Supabase Storage and updates franchises missing logo_url
+- Run backfill with: `python -m src.backend.scripts.backfill_logo_urls` (use `--dry-run` for testing)
+- Logo displayed in 80x80px container with white background and subtle border
+- 754 out of 810 franchises now have logos populated
+
+---
+
 ## [2025-12-02] - Family of Brands Frontend Feature
 
 ### Added

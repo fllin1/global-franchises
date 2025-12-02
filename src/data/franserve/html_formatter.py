@@ -99,6 +99,7 @@ def parse_html_to_structured_dict(soup: BeautifulSoup) -> Dict[str, Any]:
     structured_data = {
         "franchise_name": None,
         "source_id": None,
+        "logo_url": None,
         "page_layout": {},
         "sections": {},
     }
@@ -111,6 +112,16 @@ def parse_html_to_structured_dict(soup: BeautifulSoup) -> Dict[str, Any]:
     fran_id_tag = soup.find("input", {"name": "ZorID"})
     if fran_id_tag and fran_id_tag.get("value"):
         structured_data["source_id"] = int(fran_id_tag["value"])
+
+    # --- Logo URL Extraction ---
+    # Look for logo images in the images/logos/ directory
+    logo_img = soup.find("img", src=re.compile(r"images/logos/"))
+    if logo_img:
+        logo_src = logo_img.get("src", "")
+        if logo_src and not logo_src.startswith("http"):
+            structured_data["logo_url"] = f"https://franservesupport.com/{logo_src}"
+        elif logo_src:
+            structured_data["logo_url"] = logo_src
 
     # --- NEW: Parse Top Columns Layout ---
     page_layout = {}
@@ -239,6 +250,7 @@ def format_structured_dict_for_db(structured_data: Dict[str, Any]) -> Dict[str, 
         if source_id
         else None
     )
+    franchise_data["logo_url"] = structured_data.get("logo_url")
 
     # --- Map Data from Top Layout Columns ---
     layout = structured_data.get("page_layout", {})

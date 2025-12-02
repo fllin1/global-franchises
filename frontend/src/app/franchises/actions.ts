@@ -21,7 +21,8 @@ export async function searchFranchises(query: string): Promise<FranchiseMatch[]>
             investment_min: item.total_investment_min_usd || 0,
             match_score: 0, // Not relevant for direct search
             why_narrative: '',
-            primary_category: item.primary_category
+            primary_category: item.primary_category,
+            logo_url: item.logo_url
         }));
     } catch (error) {
         console.error('Error searching franchises:', error);

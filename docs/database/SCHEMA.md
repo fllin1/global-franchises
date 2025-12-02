@@ -81,6 +81,7 @@ Main table storing franchise information and metadata.
 | Column | Type | Description |
 |--------|------|-------------|
 | `website_url` | `text` | Official franchise website URL |
+| `logo_url` | `text` | URL to the franchise brand logo image |
 | `schedule_call_url` | `text` | Calendar booking URL for scheduling a call |
 
 **Historical Fields:**

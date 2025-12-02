@@ -17,7 +17,7 @@ async def search_franchises(q: Optional[str] = Query(None, min_length=0)):
         logger.info(f"Searching franchises for query: {q}")
         
         query_builder = supabase_client().table("franchises") \
-            .select("id, franchise_name, primary_category, description_text, total_investment_min_usd, slug")
+            .select("id, franchise_name, primary_category, description_text, total_investment_min_usd, slug, logo_url")
             
         if q and len(q.strip()) > 0:
             # Perform ILIKE search on franchise_name if query exists
