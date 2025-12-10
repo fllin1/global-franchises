@@ -74,3 +74,12 @@ LEFT JOIN family_of_brands fb ON f.parent_family_brand_id = fb.id;
 
 COMMENT ON VIEW franchises_with_family IS 'Convenience view joining franchises with their parent family brand information';
 
+
+
+
+
+
+
+
+
+

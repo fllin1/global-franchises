@@ -314,3 +314,90 @@ export async function saveLeadComparisonAnalysis(leadId: number, analysis: any):
     throw error;
   }
 }
+
+// --- Workflow Status Actions ---
+
+export async function updateLeadWorkflowStatus(leadId: number, workflowStatus: string): Promise<Lead> {
+  try {
+    const response = await fetch(getApiUrl(`/api/leads/${leadId}`), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workflow_status: workflowStatus }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to update workflow status: ${error}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Error updating workflow status for lead ${leadId}:`, error);
+    throw error;
+  }
+}
+
+// --- Re-run Matching Action ---
+
+export async function refreshLeadMatches(leadId: number): Promise<FranchiseMatch[]> {
+  try {
+    const response = await fetch(getApiUrl(`/api/leads/${leadId}/refresh-matches`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to refresh matches: ${error}`);
+    }
+    
+    const data = await response.json();
+    
+    // Map to FranchiseMatch interface with robust fallbacks
+    return data.map((m: any) => {
+      const name = m.name || m.franchise_name || 'Unknown Franchise';
+      const description = m.description || m.description_text || 'No description available';
+      const investment = m.total_investment_min_usd ?? m.investment_min ?? 0;
+      
+      let score = 0;
+      if (typeof m.match_score === 'number') {
+        score = m.match_score;
+      } else if (typeof m.similarity === 'number') {
+        score = Math.round(m.similarity * 100);
+      }
+      
+      return {
+        id: String(m.id),
+        name,
+        description,
+        investment_min: investment,
+        match_score: score,
+        why_narrative: m.why_narrative || 'Matched based on profile criteria.'
+      };
+    });
+  } catch (error) {
+    console.error(`Error refreshing matches for lead ${leadId}:`, error);
+    throw error;
+  }
+}
+
+// --- Manual Franchise Management Actions ---
+
+export async function saveLeadRecommendations(leadId: number, matches: any[]): Promise<any[]> {
+  try {
+    const response = await fetch(getApiUrl(`/api/leads/${leadId}/recommendations`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(matches),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to save recommendations: ${error}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error saving recommendations for lead ${leadId}:`, error);
+    throw error;
+  }
+}

@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-12-10] - Lead Pipeline Management UX Enhancement
+
+### Added
+- **Manual Franchise Management** (`frontend/src/app/leads/[id]/page.tsx`):
+  - Added "Add Franchise" button to manually add franchises to a lead's recommendation list
+  - Added remove (X) button to each franchise card to remove it from recommendations
+  - Created `AddFranchiseModal` component with search functionality for browsing and adding franchises
+  - Manually added franchises receive default narrative "Manually added by broker"
+  
+- **New API Action** (`frontend/src/app/actions.ts`):
+  - `saveLeadRecommendations(leadId, matches)`: Persists updated franchise recommendations list
+
+### Changed
+- **Lead Detail Page UI Labels**:
+  - Renamed "AI Recommendations" to "Franchise Recommendations"
+  - Renamed "Re-run Matching" to "Re-run AI Matching"
+  - Updated empty state help text to match new button label
+
+- **Workflow Status Management** (`frontend/src/app/leads/page.tsx`):
+  - Added workflow status column to leads table showing pipeline stage badges
+  - Added workflow status filter buttons with counts (New, Contacted, Qualified, Presented, Closed Won, Closed Lost)
+  - Added search functionality to filter leads by name, location, or notes
+  - Added clear filters button when filters are active
+  - Full dark mode support for all new UI elements
+
+- **Lead Detail Page Enhancements** (`frontend/src/app/leads/[id]/page.tsx`):
+  - Added workflow status dropdown selector in header to change lead pipeline stage
+  - Added "Re-run Matching" button to regenerate AI franchise recommendations
+  - Added back navigation link to leads list
+  - Added empty state for leads with no matches
+  - Added CoachingCard display for Tier 2 leads with missing information
+
+- **New API Actions** (`frontend/src/app/actions.ts`):
+  - `updateLeadWorkflowStatus(leadId, status)`: Updates lead's workflow/pipeline status
+  - `refreshLeadMatches(leadId)`: Re-runs AI matching algorithm for a lead
+
+- **Backend Endpoint** (`src/backend/leads.py`):
+  - Added `POST /api/leads/{lead_id}/refresh-matches` endpoint to regenerate matches with fresh AI narratives
+
+### Changed
+- **Leads List Page**:
+  - Replaced single "Status" column with separate "Tier" and "Pipeline" columns
+  - Enhanced filter UI with pipeline status quick-filter buttons showing counts
+  - Improved empty state messaging for filtered vs. no leads scenarios
+
+---
+
+## [2025-12-02] Summary
+
+Previous entries from 2025-12-02 covered: Territory map availability badge relocation, related brands section for franchise family, franchise directory table redesign, franchise logo URL support, family of brands frontend feature, and family of brands database schema.
+
+---
+
 ## [2025-12-02] - Territory Map Availability Badge Relocation
 
 ### Changed

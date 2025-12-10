@@ -299,3 +299,68 @@ async def save_comparison_analysis(lead_id: int, analysis: dict = Body(...)):
     except Exception as e:
         logger.error(f"Error saving comparison analysis for lead {lead_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{lead_id}/refresh-matches", response_model=List[dict])
+async def refresh_lead_matches(lead_id: int):
+    """
+    Re-run the matching algorithm for a lead based on their current profile.
+    This regenerates AI narratives and updates the stored matches.
+    """
+    try:
+        # 1. Get Lead
+        response = supabase_client().table("leads").select("*").eq("id", lead_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Lead not found")
+        lead_data = response.data[0]
+        
+        # 2. Parse profile
+        profile_data = lead_data.get('profile_data', {})
+        profile = LeadProfile(**profile_data)
+        
+        logger.info(f"Refreshing matches for lead {lead_id}")
+        
+        # 3. Search for new matches
+        matches_raw = await hybrid_search(profile, match_count=6)
+        
+        # 4. Generate narratives
+        narratives = await generate_match_narratives(profile, matches_raw)
+        
+        enriched_matches = []
+        for m in matches_raw:
+            m_id = m.get('id')
+            m['why_narrative'] = narratives.get(m_id, "Matched based on profile criteria.")
+            enriched_matches.append(m)
+        
+        # 5. Save back to DB
+        supabase_client().table("leads").update({
+            "matches": enriched_matches,
+            "updated_at": "now()"
+        }).eq("id", lead_id).execute()
+        
+        # 6. Hydrate with fresh franchise data
+        franchise_ids = [m.get('id') for m in enriched_matches if m.get('id')]
+        
+        if franchise_ids:
+            f_res = supabase_client().table("franchises")\
+                .select("id, franchise_name, description_text, total_investment_min_usd, primary_category")\
+                .in_("id", franchise_ids)\
+                .execute()
+            
+            fresh_map = {f['id']: f for f in f_res.data}
+            
+            for m in enriched_matches:
+                fid = m.get('id')
+                fresh = fresh_map.get(fid)
+                if fresh:
+                    m['franchise_name'] = fresh.get('franchise_name')
+                    m['total_investment_min_usd'] = fresh.get('total_investment_min_usd')
+                    m['primary_category'] = fresh.get('primary_category')
+                    if not m.get('description_text'):
+                        m['description_text'] = fresh.get('description_text')
+        
+        logger.info(f"Successfully refreshed {len(enriched_matches)} matches for lead {lead_id}")
+        
+        return enriched_matches
+    except Exception as e:
+        logger.error(f"Error refreshing matches for lead {lead_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

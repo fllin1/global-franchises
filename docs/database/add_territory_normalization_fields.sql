@@ -25,3 +25,12 @@ COMMENT ON COLUMN territory_checks.is_resale IS 'Whether this territory check is
 
 
 
+
+
+
+
+
+
+
+
+

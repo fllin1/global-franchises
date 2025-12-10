@@ -1,0 +1,8 @@
+---
+alwaysApply: true
+---
+At the end of your conversation turn:
+
+1. Increment by 1 the Prompt count in `README.md` at the root, whenever you've finished a task.
+2. If you just finished a task, update the `changelog.md` to keep all development process in a proper timeline.
+3. When adding a new entry in the `changelog.md`, if we have changed the date (meaning the new record is for a new date), you must sum up yesterday changelog to make it concise before starting a new date record.
