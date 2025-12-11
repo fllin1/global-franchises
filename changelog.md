@@ -7,24 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-12-11] - GoHighLevel Two-Way Lead Sync
+
+### Added
+- **GHL API Client** (`src/ghl/api_client.py`):
+  - Contact operations: search, find, create, update contacts
+  - Pipeline operations: list, create, get_or_create "Franchise Leads" pipeline
+  - Opportunity operations: list, create, update, find opportunities
+  - Workflow status to GHL pipeline stage mapping (new, contacted, qualified, presented, closed_won, closed_lost)
+
+- **GHL Sync Service** (`src/ghl/sync_service.py`):
+  - `sync_lead_to_ghl()`: Push lead to GHL as contact + opportunity
+  - `sync_from_ghl()`: Pull opportunity stage changes back to lead workflow_status
+  - `bulk_sync_leads_to_ghl()`: Sync multiple leads at once
+  - `two_way_sync_lead()`: Perform both push and pull sync
+  - Location parsing helper for city/state extraction
+  - **Tag differentiation**: Leads are tagged as "FranchisesGlobal Lead" to distinguish them from Franserve contacts (franchise consultants) in GHL
+
+- **API Endpoints** (`src/backend/leads.py`):
+  - `POST /api/leads/{lead_id}/sync-ghl`: Sync single lead to GHL
+  - `POST /api/leads/{lead_id}/sync-from-ghl`: Pull updates from GHL
+  - `POST /api/leads/{lead_id}/two-way-sync-ghl`: Two-way sync
+  - `POST /api/leads/sync-ghl`: Bulk sync selected leads
+
+- **Frontend Leads Page** (`frontend/src/app/leads/page.tsx`):
+  - Checkbox selection for bulk lead selection
+  - "Sync to GHL" button with loading state and count badge
+  - Select all/none toggle in table header
+  - Sync result banner showing success/failed counts
+  - GHL sync status column showing "Synced" or "Not synced" badges
+  - Orange color theme for GHL-related UI elements
+
+- **Frontend Actions** (`frontend/src/app/actions.ts`):
+  - `syncLeadToGHL()`: Sync single lead
+  - `syncLeadsToGHL()`: Bulk sync selected leads
+  - `syncLeadFromGHL()`: Pull updates from GHL
+
+- **Database Migration** (`docs/database/add_ghl_sync_columns_to_leads.sql`):
+  - Added `ghl_contact_id`, `ghl_opportunity_id`, `ghl_last_synced_at` columns to leads table
+  - Partial indexes for efficient GHL lookups
+
+- **Tests**:
+  - `tests/ghl/test_api_client.py`: Unit tests for GHL API client with mocking
+  - `tests/ghl/test_sync_service.py`: Unit tests for sync service with mocking
+
+### Changed
+- **Backend Models** (`src/backend/models.py`):
+  - Added `ghl_contact_id`, `ghl_opportunity_id`, `ghl_last_synced_at` fields to Lead model
+
+- **Frontend Types** (`frontend/src/types/index.ts`):
+  - Added GHL fields to Lead interface
+  - Added `GHLSyncResult` and `GHLBulkSyncResponse` types
+
+---
+
 ## [2025-12-10] - Lead Pipeline Management UX Enhancement
 
 ### Added
-- **Manual Franchise Management** (`frontend/src/app/leads/[id]/page.tsx`):
-  - Added "Add Franchise" button to manually add franchises to a lead's recommendation list
-  - Added remove (X) button to each franchise card to remove it from recommendations
-  - Created `AddFranchiseModal` component with search functionality for browsing and adding franchises
-  - Manually added franchises receive default narrative "Manually added by broker"
-  
-- **New API Action** (`frontend/src/app/actions.ts`):
-  - `saveLeadRecommendations(leadId, matches)`: Persists updated franchise recommendations list
-
-### Changed
-- **Lead Detail Page UI Labels**:
-  - Renamed "AI Recommendations" to "Franchise Recommendations"
-  - Renamed "Re-run Matching" to "Re-run AI Matching"
-  - Updated empty state help text to match new button label
-
 - **Workflow Status Management** (`frontend/src/app/leads/page.tsx`):
   - Added workflow status column to leads table showing pipeline stage badges
   - Added workflow status filter buttons with counts (New, Contacted, Qualified, Presented, Closed Won, Closed Lost)

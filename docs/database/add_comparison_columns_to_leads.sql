@@ -26,3 +26,4 @@ ADD COLUMN IF NOT EXISTS comparison_analysis JSONB DEFAULT NULL;
 
 
 
+

@@ -45,8 +45,29 @@ export interface Lead {
   matches?: FranchiseMatch[];
   qualification_status: TierStatus;
   workflow_status: string;
+  // GHL sync fields
+  ghl_contact_id?: string | null;
+  ghl_opportunity_id?: string | null;
+  ghl_last_synced_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// GHL Sync types
+export interface GHLSyncResult {
+  success: boolean;
+  lead_id: number;
+  ghl_contact_id?: string | null;
+  ghl_opportunity_id?: string | null;
+  action: string;
+  error?: string | null;
+}
+
+export interface GHLBulkSyncResponse {
+  total: number;
+  success: number;
+  failed: number;
+  results: GHLSyncResult[];
 }
 
 export interface FranchiseMatch {

@@ -109,6 +109,10 @@ class Lead(BaseModel):
     workflow_status: str
     comparison_selections: Optional[List[int]] = None
     comparison_analysis: Optional[Dict[str, Any]] = None
+    # GHL sync fields
+    ghl_contact_id: Optional[str] = None
+    ghl_opportunity_id: Optional[str] = None
+    ghl_last_synced_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

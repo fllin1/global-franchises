@@ -2,14 +2,13 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { getLead, getLeadMatches, updateLeadProfile, getLeadComparisonAnalysis, updateLeadWorkflowStatus, refreshLeadMatches, saveLeadRecommendations } from '@/app/actions';
+import { getLead, getLeadMatches, updateLeadProfile, getLeadComparisonAnalysis, updateLeadWorkflowStatus, refreshLeadMatches } from '@/app/actions';
 import { Lead, FranchiseMatch, LeadProfile } from '@/types';
 import { MatchCard } from '@/components/MatchCard';
 import { CoachingCard } from '@/components/CoachingCard';
 import { LeadProfileForm } from '@/components/LeadProfileForm';
 import { MatchDetailModal } from '@/components/MatchDetailModal';
-import { AddFranchiseModal } from '@/components/AddFranchiseModal';
-import { Wallet, MapPin, BrainCircuit, FileBarChart, Loader2, RefreshCw, ChevronDown, ArrowLeft, X, Plus } from 'lucide-react';
+import { Wallet, MapPin, BrainCircuit, FileBarChart, Loader2, RefreshCw, ChevronDown, ArrowLeft } from 'lucide-react';
 import { useComparison } from '@/contexts/ComparisonContext';
 import Link from 'next/link';
 
@@ -41,12 +40,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   
   // Re-run matching state
   const [isRefreshingMatches, setIsRefreshingMatches] = useState(false);
-  
-  // Remove match state
-  const [removingMatchId, setRemovingMatchId] = useState<string | null>(null);
-  
-  // Add Franchise Modal state
-  const [showAddModal, setShowAddModal] = useState(false);
   
   // Saved Comparison State
   const [hasSavedComparison, setHasSavedComparison] = useState(false);
@@ -159,62 +152,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     } finally {
       setIsRefreshingMatches(false);
     }
-  };
-
-  const handleRemoveMatch = async (matchId: string) => {
-    if (!confirm('Are you sure you want to remove this franchise from the recommendations?')) {
-      return;
-    }
-    
-    setRemovingMatchId(matchId);
-    
-    try {
-      // Filter out the match to remove
-      const updatedMatches = matches.filter(m => m.id !== matchId);
-      
-      // Convert to backend format for saving
-      const matchesToSave = updatedMatches.map(m => ({
-        id: parseInt(m.id),
-        franchise_name: m.name,
-        description_text: m.description,
-        total_investment_min_usd: m.investment_min,
-        similarity: m.match_score / 100,
-        why_narrative: m.why_narrative
-      }));
-      
-      await saveLeadRecommendations(leadId, matchesToSave);
-      setMatches(updatedMatches);
-    } catch (error) {
-      console.error("Failed to remove match", error);
-      alert("Failed to remove franchise. Please try again.");
-    } finally {
-      setRemovingMatchId(null);
-    }
-  };
-
-  const handleAddFranchise = async (franchise: FranchiseMatch) => {
-    // Create the new match with default narrative
-    const newMatch: FranchiseMatch = {
-      ...franchise,
-      match_score: 0, // No AI score for manually added
-      why_narrative: 'Manually added by broker'
-    };
-    
-    // Add to current matches
-    const updatedMatches = [...matches, newMatch];
-    
-    // Convert to backend format for saving
-    const matchesToSave = updatedMatches.map(m => ({
-      id: parseInt(m.id),
-      franchise_name: m.name,
-      description_text: m.description,
-      total_investment_min_usd: m.investment_min,
-      similarity: m.match_score / 100,
-      why_narrative: m.why_narrative
-    }));
-    
-    await saveLeadRecommendations(leadId, matchesToSave);
-    setMatches(updatedMatches);
   };
 
   if (isLoading) return <div className="p-8 text-slate-600 dark:text-slate-300">Loading...</div>;
@@ -351,7 +288,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             <div className="flex items-center gap-4">
                 <h2 className="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                 <BrainCircuit className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                Franchise Recommendations
+                AI Recommendations
                 </h2>
                 
                 {/* Load Saved Comparison Button */}
@@ -377,15 +314,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             </div>
 
             <div className="flex gap-2">
-               {/* Add Franchise Button */}
-               <button
-                 onClick={() => setShowAddModal(true)}
-                 className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border bg-indigo-600 text-white hover:bg-indigo-700 border-indigo-600"
-               >
-                 <Plus className="w-4 h-4" />
-                 Add Franchise
-               </button>
-               
                {/* Re-run Matching Button */}
                <button
                  onClick={handleRefreshMatches}
@@ -398,7 +326,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                  `}
                >
                  <RefreshCw className={`w-4 h-4 ${isRefreshingMatches ? 'animate-spin' : ''}`} />
-                 {isRefreshingMatches ? 'Refreshing...' : 'Re-run AI Matching'}
+                 {isRefreshingMatches ? 'Refreshing...' : 'Re-run Matching'}
                </button>
             </div>
           </div>
@@ -409,12 +337,12 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                 <BrainCircuit className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                 <h3 className="text-slate-900 dark:text-white font-medium mb-1">No matches yet</h3>
                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
-                  Complete the profile and click "Re-run AI Matching" to find franchise recommendations.
+                  Complete the profile and click "Re-run Matching" to find franchise recommendations.
                 </p>
               </div>
             ) : (
               matches.map((match) => (
-                <div key={match.id} className="flex gap-3 items-start">
+                <div key={match.id} className="flex gap-3">
                    <div className="pt-3">
                       <input 
                           type="checkbox"
@@ -428,20 +356,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                           match={match} 
                           onClick={() => setSelectedFranchiseId(parseInt(match.id))}
                       />
-                   </div>
-                   <div className="pt-3">
-                      <button
-                        onClick={() => handleRemoveMatch(match.id)}
-                        disabled={removingMatchId === match.id}
-                        className="p-1.5 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-wait"
-                        title="Remove from recommendations"
-                      >
-                        {removingMatchId === match.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <X className="w-4 h-4" />
-                        )}
-                      </button>
                    </div>
                 </div>
               ))
@@ -457,14 +371,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           onClose={() => setSelectedFranchiseId(null)}
         />
       )}
-
-      {/* Add Franchise Modal */}
-      <AddFranchiseModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onAdd={handleAddFranchise}
-        existingMatchIds={matches.map(m => m.id)}
-      />
     </div>
   );
 }

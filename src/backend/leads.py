@@ -1,10 +1,38 @@
 from fastapi import APIRouter, HTTPException, Depends, Body
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from pydantic import BaseModel
 from src.backend.models import Lead, LeadCreate, LeadUpdate, LeadProfile
 from src.api.config.supabase_config import supabase_client
 from src.backend.extractor import extract_profile_from_notes
+from src.ghl.sync_service import (
+    sync_lead_to_ghl,
+    sync_from_ghl,
+    bulk_sync_leads_to_ghl,
+    two_way_sync_lead,
+)
 from loguru import logger
+
+
+# Request/Response models for GHL sync
+class GHLSyncRequest(BaseModel):
+    lead_ids: List[int]
+
+
+class GHLSyncResult(BaseModel):
+    success: bool
+    lead_id: int
+    ghl_contact_id: Optional[str] = None
+    ghl_opportunity_id: Optional[str] = None
+    action: str
+    error: Optional[str] = None
+
+
+class GHLBulkSyncResponse(BaseModel):
+    total: int
+    success: int
+    failed: int
+    results: List[GHLSyncResult]
 
 router = APIRouter(prefix="/api/leads", tags=["leads"])
 
@@ -25,6 +53,10 @@ def db_to_lead(row: dict) -> Lead:
         workflow_status=row['workflow_status'],
         comparison_selections=row.get('comparison_selections'),
         comparison_analysis=row.get('comparison_analysis'),
+        # GHL sync fields
+        ghl_contact_id=row.get('ghl_contact_id'),
+        ghl_opportunity_id=row.get('ghl_opportunity_id'),
+        ghl_last_synced_at=row.get('ghl_last_synced_at'),
         created_at=row['created_at'],
         updated_at=row['updated_at']
     )
@@ -363,4 +395,112 @@ async def refresh_lead_matches(lead_id: int):
         return enriched_matches
     except Exception as e:
         logger.error(f"Error refreshing matches for lead {lead_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- GHL Sync Endpoints ---
+
+@router.post("/{lead_id}/sync-ghl", response_model=GHLSyncResult)
+async def sync_lead_to_ghl_endpoint(lead_id: int):
+    """
+    Sync a single lead to GoHighLevel.
+    
+    Creates or updates:
+    - Contact in GHL (matched by email or phone)
+    - Opportunity in the "Franchise Leads" pipeline
+    
+    The lead's workflow_status is mapped to the GHL pipeline stage.
+    """
+    try:
+        result = sync_lead_to_ghl(lead_id)
+        
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=400,
+                detail=result.get("error", "Sync failed")
+            )
+        
+        return GHLSyncResult(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in GHL sync endpoint for lead {lead_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{lead_id}/sync-from-ghl")
+async def sync_from_ghl_endpoint(lead_id: int):
+    """
+    Pull opportunity stage from GHL and update lead workflow_status.
+    
+    Only works for leads that have already been synced to GHL.
+    """
+    try:
+        result = sync_from_ghl(lead_id)
+        
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=400,
+                detail=result.get("error", "Sync failed")
+            )
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in GHL pull sync endpoint for lead {lead_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{lead_id}/two-way-sync-ghl")
+async def two_way_sync_lead_endpoint(lead_id: int):
+    """
+    Perform two-way sync for a lead:
+    1. Pull latest stage from GHL (if already synced)
+    2. Push lead data to GHL
+    
+    This ensures both systems are in sync.
+    """
+    try:
+        result = two_way_sync_lead(lead_id)
+        
+        if not result.get("success"):
+            push_result = result.get("push", {})
+            raise HTTPException(
+                status_code=400,
+                detail=push_result.get("error", "Sync failed")
+            )
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in two-way GHL sync for lead {lead_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/sync-ghl", response_model=GHLBulkSyncResponse)
+async def bulk_sync_leads_to_ghl_endpoint(request: GHLSyncRequest):
+    """
+    Sync multiple leads to GoHighLevel.
+    
+    Accepts a list of lead IDs and syncs each one.
+    Returns summary with individual results.
+    """
+    try:
+        if not request.lead_ids:
+            raise HTTPException(status_code=400, detail="No lead IDs provided")
+        
+        result = bulk_sync_leads_to_ghl(request.lead_ids)
+        
+        return GHLBulkSyncResponse(
+            total=result["total"],
+            success=result["success"],
+            failed=result["failed"],
+            results=[GHLSyncResult(**r) for r in result["results"]],
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in bulk GHL sync: {e}")
         raise HTTPException(status_code=500, detail=str(e))

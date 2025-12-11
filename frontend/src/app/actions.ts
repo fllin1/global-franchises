@@ -1,6 +1,6 @@
 'use server';
 
-import { AnalysisResponse, FranchiseMatch, TierStatus, LeadProfile, TerritoryFranchise, Lead } from '@/types';
+import { AnalysisResponse, FranchiseMatch, TierStatus, LeadProfile, TerritoryFranchise, Lead, GHLBulkSyncResponse, GHLSyncResult } from '@/types';
 import { getApiUrl } from '@/lib/api';
 
 // Types matching the ACTUAL Backend Response
@@ -380,24 +380,62 @@ export async function refreshLeadMatches(leadId: number): Promise<FranchiseMatch
   }
 }
 
-// --- Manual Franchise Management Actions ---
+// --- GHL Sync Actions ---
 
-export async function saveLeadRecommendations(leadId: number, matches: any[]): Promise<any[]> {
+export async function syncLeadToGHL(leadId: number): Promise<GHLSyncResult> {
   try {
-    const response = await fetch(getApiUrl(`/api/leads/${leadId}/recommendations`), {
+    const response = await fetch(getApiUrl(`/api/leads/${leadId}/sync-ghl`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(matches),
     });
     
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Failed to save recommendations: ${error}`);
+      throw new Error(`Failed to sync lead to GHL: ${error}`);
     }
     
     return await response.json();
   } catch (error) {
-    console.error(`Error saving recommendations for lead ${leadId}:`, error);
+    console.error(`Error syncing lead ${leadId} to GHL:`, error);
+    throw error;
+  }
+}
+
+export async function syncLeadsToGHL(leadIds: number[]): Promise<GHLBulkSyncResponse> {
+  try {
+    const response = await fetch(getApiUrl('/api/leads/sync-ghl'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead_ids: leadIds }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to sync leads to GHL: ${error}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error syncing leads to GHL:', error);
+    throw error;
+  }
+}
+
+export async function syncLeadFromGHL(leadId: number): Promise<{ success: boolean; workflow_status?: string; changed: boolean; error?: string }> {
+  try {
+    const response = await fetch(getApiUrl(`/api/leads/${leadId}/sync-from-ghl`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to sync from GHL: ${error}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error syncing lead ${leadId} from GHL:`, error);
     throw error;
   }
 }

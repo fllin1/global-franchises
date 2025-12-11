@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Plus, Trash2, Search, Filter, CircleDot } from 'lucide-react';
-import { getLeads, deleteLead } from '@/app/actions';
+import { Plus, Trash2, Search, Filter, CircleDot, RefreshCw, CheckCircle2, AlertCircle, Cloud } from 'lucide-react';
+import { getLeads, deleteLead, syncLeadsToGHL } from '@/app/actions';
 import { Lead } from '@/types';
 
 // Workflow status configuration
@@ -25,6 +25,11 @@ export default function LeadsPage() {
   const [tierFilter, setTierFilter] = useState('all'); // all, tier_1, tier_2
   const [workflowFilter, setWorkflowFilter] = useState('all'); // all, new, contacted, etc.
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Selection state for bulk actions
+  const [selectedLeads, setSelectedLeads] = useState<Set<number>>(new Set());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ success: number; failed: number } | null>(null);
 
   useEffect(() => {
     loadLeads();
@@ -52,8 +57,68 @@ export default function LeadsPage() {
     try {
       await deleteLead(id);
       setLeads(leads.filter(l => l.id !== id));
+      // Also remove from selection
+      setSelectedLeads(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     } catch (error) {
       alert('Failed to delete lead');
+    }
+  }
+
+  // Toggle single lead selection
+  function toggleLeadSelection(id: number) {
+    setSelectedLeads(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  // Toggle all visible leads selection
+  function toggleAllSelection() {
+    if (selectedLeads.size === filteredLeads.length) {
+      setSelectedLeads(new Set());
+    } else {
+      setSelectedLeads(new Set(filteredLeads.map(l => l.id)));
+    }
+  }
+
+  // Sync selected leads to GHL
+  async function handleSyncToGHL() {
+    if (selectedLeads.size === 0) {
+      alert('Please select at least one lead to sync.');
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncResult(null);
+
+    try {
+      const result = await syncLeadsToGHL(Array.from(selectedLeads));
+      setSyncResult({ success: result.success, failed: result.failed });
+      
+      // Reload leads to get updated GHL IDs
+      await loadLeads();
+      
+      // Clear selection after successful sync
+      setSelectedLeads(new Set());
+      
+      // Show success message
+      if (result.failed === 0) {
+        setTimeout(() => setSyncResult(null), 5000);
+      }
+    } catch (error) {
+      console.error('Error syncing to GHL:', error);
+      alert(`Failed to sync leads: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSyncing(false);
     }
   }
 
@@ -95,6 +160,10 @@ export default function LeadsPage() {
     return byWorkflow;
   }, [leads]);
 
+  // Check if all visible leads are selected
+  const allSelected = filteredLeads.length > 0 && selectedLeads.size === filteredLeads.length;
+  const someSelected = selectedLeads.size > 0 && selectedLeads.size < filteredLeads.length;
+
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -102,11 +171,62 @@ export default function LeadsPage() {
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">My Leads</h1>
             <p className="text-slate-500 dark:text-slate-400 mt-1">Manage your pipeline and franchise matches</p>
         </div>
-        <Link href="/leads/new" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-sm transition-colors">
-            <Plus className="w-4 h-4" />
-            New Lead
-        </Link>
+        <div className="flex items-center gap-3">
+          {/* Sync to GHL button */}
+          {selectedLeads.size > 0 && (
+            <button
+              onClick={handleSyncToGHL}
+              disabled={isSyncing}
+              className="bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-sm transition-colors"
+            >
+              {isSyncing ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <Cloud className="w-4 h-4" />
+                  Sync to GHL ({selectedLeads.size})
+                </>
+              )}
+            </button>
+          )}
+          <Link href="/leads/new" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-sm transition-colors">
+              <Plus className="w-4 h-4" />
+              New Lead
+          </Link>
+        </div>
       </div>
+
+      {/* Sync Result Banner */}
+      {syncResult && (
+        <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
+          syncResult.failed === 0 
+            ? 'bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800' 
+            : 'bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800'
+        }`}>
+          {syncResult.failed === 0 ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          )}
+          <span className={`text-sm font-medium ${
+            syncResult.failed === 0 
+              ? 'text-emerald-700 dark:text-emerald-300' 
+              : 'text-amber-700 dark:text-amber-300'
+          }`}>
+            Successfully synced {syncResult.success} lead{syncResult.success !== 1 ? 's' : ''} to GoHighLevel
+            {syncResult.failed > 0 && ` (${syncResult.failed} failed)`}
+          </span>
+          <button
+            onClick={() => setSyncResult(null)}
+            className="ml-auto text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+          >
+            &times;
+          </button>
+        </div>
+      )}
 
       {/* Pipeline Stats */}
       {!isLoading && !error && leads.length > 0 && (
@@ -220,23 +340,48 @@ export default function LeadsPage() {
             <table className="w-full text-left">
                 <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                     <tr>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Candidate</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tier</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pipeline</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Location</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Liquidity</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                        <th className="px-4 py-4 w-10">
+                          <input
+                            type="checkbox"
+                            checked={allSelected}
+                            ref={(el) => {
+                              if (el) el.indeterminate = someSelected;
+                            }}
+                            onChange={toggleAllSelection}
+                            className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </th>
+                        <th className="px-4 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Candidate</th>
+                        <th className="px-4 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tier</th>
+                        <th className="px-4 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pipeline</th>
+                        <th className="px-4 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Location</th>
+                        <th className="px-4 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Liquidity</th>
+                        <th className="px-4 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">GHL</th>
+                        <th className="px-4 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
+                        <th className="px-4 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {filteredLeads.map((lead) => {
                         const workflowStatus = (lead.workflow_status || 'new') as WorkflowStatus;
                         const statusConfig = WORKFLOW_STATUSES[workflowStatus] || WORKFLOW_STATUSES.new;
+                        const isSelected = selectedLeads.has(lead.id);
+                        const isSyncedToGHL = Boolean(lead.ghl_contact_id && lead.ghl_opportunity_id);
                         
                         return (
-                          <tr key={lead.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                              <td className="px-6 py-4">
+                          <tr 
+                            key={lead.id} 
+                            className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group ${isSelected ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}
+                          >
+                              <td className="px-4 py-4">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleLeadSelection(lead.id)}
+                                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                />
+                              </td>
+                              <td className="px-4 py-4">
                                   <Link href={`/leads/${lead.id}`} className="block">
                                       <div className="font-medium text-slate-900 dark:text-white">
                                           {lead.candidate_name || lead.profile_data?.candidate_name || `Lead #${lead.id}`}
@@ -246,7 +391,7 @@ export default function LeadsPage() {
                                       </div>
                                   </Link>
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-4 py-4">
                                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
                                       lead.qualification_status === 'tier_1' 
                                       ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-800' 
@@ -255,22 +400,35 @@ export default function LeadsPage() {
                                       {lead.qualification_status === 'tier_1' ? 'Tier 1' : 'Tier 2'}
                                   </span>
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-4 py-4">
                                   <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusConfig.color}`}>
                                       <CircleDot className="w-3 h-3" />
                                       {statusConfig.label}
                                   </span>
                               </td>
-                              <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                              <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
                                   {lead.profile_data?.location || '-'}
                               </td>
-                              <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                              <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
                                   {lead.profile_data?.liquidity ? `$${lead.profile_data.liquidity.toLocaleString()}` : '-'}
                               </td>
-                              <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
+                              <td className="px-4 py-4">
+                                  {isSyncedToGHL ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-100 dark:border-orange-800" title={`Synced: ${lead.ghl_last_synced_at ? new Date(lead.ghl_last_synced_at).toLocaleString() : 'Unknown'}`}>
+                                      <Cloud className="w-3 h-3" />
+                                      Synced
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                      <Cloud className="w-3 h-3" />
+                                      Not synced
+                                    </span>
+                                  )}
+                              </td>
+                              <td className="px-4 py-4 text-sm text-slate-500 dark:text-slate-400">
                                   {new Date(lead.created_at).toLocaleDateString()}
                               </td>
-                              <td className="px-6 py-4 text-right">
+                              <td className="px-4 py-4 text-right">
                                   <button 
                                       onClick={(e) => {
                                           e.stopPropagation();
