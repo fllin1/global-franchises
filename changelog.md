@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2025-12-11] - Enhanced GHL Sync with Custom Fields & Lead Nurturing Pipeline
 
 ### Added
+- **Shared Workflow Status Library** (`frontend/src/lib/workflow.ts`):
+  - Created centralized workflow status configuration for all 12 GHL Lead Nurturing pipeline stages
+  - `WORKFLOW_STATUSES` constant with label, color, and dotColor for each status
+  - `WorkflowStatus` TypeScript type exported for type safety
+  - `DEFAULT_WORKFLOW_STATUS` constant set to 'new_lead'
+  - `LEGACY_STATUS_MAP` for backwards compatibility with old status values (new→new_lead, contacted→initial_sms_sent, etc.)
+  - `getWorkflowStatusConfig()` helper function that handles legacy status mapping and provides fallback
+
 - **Custom Fields API Support** (`src/ghl/api_client.py`):
   - `list_custom_fields(model)`: List existing custom fields for contacts/opportunities
   - `create_custom_field(name, data_type, model)`: Create new custom fields in GHL
@@ -32,6 +40,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Migration script for existing data
 
 ### Changed
+- **Frontend Leads List Page** (`frontend/src/app/leads/page.tsx`):
+  - Replaced local WORKFLOW_STATUSES with import from shared `@/lib/workflow`
+  - Pipeline filter chips now show all 12 GHL stages
+  - Updated status lookup to use `getWorkflowStatusConfig()` for legacy status mapping
+
+- **Frontend Lead Detail Page** (`frontend/src/app/leads/[id]/page.tsx`):
+  - Replaced local WORKFLOW_STATUSES with import from shared `@/lib/workflow`
+  - Status dropdown now shows all 12 GHL stages with color-coded dots
+  - Updated status config lookup to use shared helper function
+
 - **Pipeline Integration**: Now uses existing "Lead Nurturing" pipeline instead of creating "Franchise Leads"
 - **Stage Mapping**: Updated `WORKFLOW_TO_STAGE` for all 12 Lead Nurturing pipeline stages
 - **Opportunity Status**: Maps closed_won → "won", disqualified → "lost", others → "open"

@@ -5,18 +5,7 @@ import Link from 'next/link';
 import { Plus, Trash2, Search, Filter, CircleDot, RefreshCw, CheckCircle2, AlertCircle, Cloud } from 'lucide-react';
 import { getLeads, deleteLead, syncLeadsToGHL } from '@/app/actions';
 import { Lead } from '@/types';
-
-// Workflow status configuration
-const WORKFLOW_STATUSES = {
-  new: { label: 'New', color: 'bg-slate-100 text-slate-700 border-slate-200' },
-  contacted: { label: 'Contacted', color: 'bg-blue-50 text-blue-700 border-blue-100' },
-  qualified: { label: 'Qualified', color: 'bg-purple-50 text-purple-700 border-purple-100' },
-  presented: { label: 'Presented', color: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
-  closed_won: { label: 'Closed Won', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-  closed_lost: { label: 'Closed Lost', color: 'bg-red-50 text-red-700 border-red-100' },
-} as const;
-
-type WorkflowStatus = keyof typeof WORKFLOW_STATUSES;
+import { WORKFLOW_STATUSES, getWorkflowStatusConfig, DEFAULT_WORKFLOW_STATUS } from '@/lib/workflow';
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -154,8 +143,8 @@ export default function LeadsPage() {
   const stats = useMemo(() => {
     const byWorkflow: Record<string, number> = { all: leads.length };
     leads.forEach(lead => {
-      const status = lead.workflow_status || 'new';
-      byWorkflow[status] = (byWorkflow[status] || 0) + 1;
+      const { key } = getWorkflowStatusConfig(lead.workflow_status);
+      byWorkflow[key] = (byWorkflow[key] || 0) + 1;
     });
     return byWorkflow;
   }, [leads]);
@@ -363,8 +352,7 @@ export default function LeadsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {filteredLeads.map((lead) => {
-                        const workflowStatus = (lead.workflow_status || 'new') as WorkflowStatus;
-                        const statusConfig = WORKFLOW_STATUSES[workflowStatus] || WORKFLOW_STATUSES.new;
+                        const statusConfig = getWorkflowStatusConfig(lead.workflow_status);
                         const isSelected = selectedLeads.has(lead.id);
                         const isSyncedToGHL = Boolean(lead.ghl_contact_id && lead.ghl_opportunity_id);
                         

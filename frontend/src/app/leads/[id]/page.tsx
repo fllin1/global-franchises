@@ -11,18 +11,7 @@ import { MatchDetailModal } from '@/components/MatchDetailModal';
 import { Wallet, MapPin, BrainCircuit, FileBarChart, Loader2, RefreshCw, ChevronDown, ArrowLeft } from 'lucide-react';
 import { useComparison } from '@/contexts/ComparisonContext';
 import Link from 'next/link';
-
-// Workflow status configuration
-const WORKFLOW_STATUSES = {
-  new: { label: 'New', color: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' },
-  contacted: { label: 'Contacted', color: 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' },
-  qualified: { label: 'Qualified', color: 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' },
-  presented: { label: 'Presented', color: 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800' },
-  closed_won: { label: 'Closed Won', color: 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800' },
-  closed_lost: { label: 'Closed Lost', color: 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800' },
-} as const;
-
-type WorkflowStatus = keyof typeof WORKFLOW_STATUSES;
+import { WORKFLOW_STATUSES, WorkflowStatus, getWorkflowStatusConfig } from '@/lib/workflow';
 
 export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -168,8 +157,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     }
   }
 
-  const currentWorkflowStatus = (lead.workflow_status || 'new') as WorkflowStatus;
-  const statusConfig = WORKFLOW_STATUSES[currentWorkflowStatus] || WORKFLOW_STATUSES.new;
+  const statusConfig = getWorkflowStatusConfig(lead.workflow_status);
+  const currentWorkflowStatus = statusConfig.key;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24">
@@ -217,7 +206,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                       className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-20"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {Object.entries(WORKFLOW_STATUSES).map(([key, { label, color }]) => (
+                      {Object.entries(WORKFLOW_STATUSES).map(([key, { label, dotColor }]) => (
                         <button
                           key={key}
                           onClick={() => handleWorkflowStatusChange(key as WorkflowStatus)}
@@ -228,14 +217,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                               : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}
                           `}
                         >
-                          <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
-                            key === 'new' ? 'bg-slate-400' :
-                            key === 'contacted' ? 'bg-blue-500' :
-                            key === 'qualified' ? 'bg-purple-500' :
-                            key === 'presented' ? 'bg-indigo-500' :
-                            key === 'closed_won' ? 'bg-emerald-500' :
-                            'bg-red-500'
-                          }`}></span>
+                          <span className={`inline-block w-2 h-2 rounded-full mr-2 ${dotColor}`}></span>
                           {label}
                         </button>
                       ))}
