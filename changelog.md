@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-12-11] - Restore Franchise Add/Remove Features
+
+### Added
+- **`AddFranchiseModal` Component** (`frontend/src/components/AddFranchiseModal.tsx`):
+  - Restored modal for searching and adding franchises to lead recommendations
+  - Features debounced search, franchise list with investment/category info
+  - Shows "Added" state for franchises already in recommendations
+  - Full dark mode support
+
+- **`saveLeadRecommendations` Action** (`frontend/src/app/actions.ts`):
+  - Restored frontend action to save/update lead recommendations via API
+  - Calls `POST /api/leads/{lead_id}/recommendations` endpoint
+
+### Fixed
+- **Lead Detail Page** (`frontend/src/app/leads/[id]/page.tsx`):
+  - Restored remove button (X icon) next to each franchise recommendation
+  - Restored "Add Franchise" button to manually add franchises
+  - Restored `handleRemoveMatch` function with confirmation dialog
+  - Restored `handleAddFranchise` function for adding franchises to recommendations
+  - Features were accidentally removed in commit `979de68`
+
+---
+
 ## [2025-12-11] - Enhanced GHL Sync with Custom Fields & Lead Nurturing Pipeline
 
 ### Added

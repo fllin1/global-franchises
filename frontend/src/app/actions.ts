@@ -248,6 +248,27 @@ export async function getLeadMatches(id: number): Promise<FranchiseMatch[]> {
     }
 }
 
+// --- Lead Recommendations Actions ---
+
+export async function saveLeadRecommendations(leadId: number, matches: any[]): Promise<any[]> {
+  try {
+    const response = await fetch(getApiUrl(`/api/leads/${leadId}/recommendations`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(matches),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to save recommendations: ${error}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Error saving recommendations for lead ${leadId}:`, error);
+    throw error;
+  }
+}
+
 // --- Comparison Actions ---
 
 export async function getLeadComparisonSelections(leadId: number): Promise<number[]> {
