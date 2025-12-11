@@ -19,3 +19,4 @@ CREATE INDEX IF NOT EXISTS idx_leads_ghl_opportunity_id ON leads(ghl_opportunity
 COMMENT ON COLUMN leads.ghl_contact_id IS 'GoHighLevel contact ID for two-way sync';
 COMMENT ON COLUMN leads.ghl_opportunity_id IS 'GoHighLevel opportunity ID for pipeline tracking';
 COMMENT ON COLUMN leads.ghl_last_synced_at IS 'Timestamp of last successful sync with GHL';
+

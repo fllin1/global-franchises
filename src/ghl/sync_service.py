@@ -7,7 +7,7 @@ and pulling opportunity stage changes back to update workflow_status.
 """
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from loguru import logger
 
@@ -17,15 +17,57 @@ from src.ghl.api_client import (
     create_contact,
     update_contact,
     get_contact,
-    get_or_create_franchise_leads_pipeline,
+    get_or_create_lead_nurturing_pipeline,
     find_opportunity_for_contact,
     create_opportunity,
     update_opportunity,
     get_opportunity,
     get_stage_id_for_workflow_status,
     get_workflow_status_for_stage,
+    get_or_create_custom_field,
     WORKFLOW_TO_STAGE,
 )
+
+
+# ---------- Custom Field Mappings ----------
+
+# Map profile_data fields to GHL custom field definitions
+# Format: profile_key -> (GHL field name, GHL data type)
+CUSTOM_FIELD_MAPPINGS: Dict[str, Tuple[str, str]] = {
+    # Financials (The Money)
+    "liquidity": ("FG Liquidity", "MONETARY"),
+    "investment_cap": ("FG Investment Cap", "MONETARY"),
+    "net_worth": ("FG Net Worth", "MONETARY"),
+    "investment_source": ("FG Investment Source", "SINGLE_LINE_TEXT"),
+    
+    # Location/Territory
+    "location": ("FG Location", "SINGLE_LINE_TEXT"),
+    "state_code": ("FG State", "SINGLE_LINE_TEXT"),
+    "territories": ("FG Territories", "MULTI_LINE_TEXT"),
+    
+    # Profile/Intent (The Interest)
+    "semantic_query": ("FG Search Intent", "MULTI_LINE_TEXT"),
+    "role_preference": ("FG Role Preference", "SINGLE_LINE_TEXT"),
+    "business_model_preference": ("FG Business Model", "SINGLE_LINE_TEXT"),
+    "staff_preference": ("FG Staff Preference", "SINGLE_LINE_TEXT"),
+    "franchise_categories": ("FG Categories", "MULTI_LINE_TEXT"),
+    "home_based_preference": ("FG Home Based", "SINGLE_LINE_TEXT"),
+    "absentee_preference": ("FG Absentee", "SINGLE_LINE_TEXT"),
+    "semi_absentee_preference": ("FG Semi-Absentee", "SINGLE_LINE_TEXT"),
+    "multi_unit_preference": ("FG Multi-Unit", "SINGLE_LINE_TEXT"),
+    
+    # Motives
+    "trigger_event": ("FG Trigger Event", "SINGLE_LINE_TEXT"),
+    "current_status": ("FG Current Status", "SINGLE_LINE_TEXT"),
+    "experience_level": ("FG Experience", "SINGLE_LINE_TEXT"),
+    "goals": ("FG Goals", "MULTI_LINE_TEXT"),
+    "timeline": ("FG Timeline", "SINGLE_LINE_TEXT"),
+}
+
+# Lead-level fields (not from profile_data)
+LEAD_FIELD_MAPPINGS: Dict[str, Tuple[str, str]] = {
+    "qualification_status": ("FG Qualification Tier", "SINGLE_LINE_TEXT"),
+}
 
 
 # Cache for pipeline data to avoid repeated API calls
@@ -33,10 +75,10 @@ _pipeline_cache: Optional[Dict] = None
 
 
 def _get_pipeline() -> Dict:
-    """Get the Franchise Leads pipeline, using cache if available."""
+    """Get the Lead Nurturing pipeline, using cache if available."""
     global _pipeline_cache
     if _pipeline_cache is None:
-        _pipeline_cache = get_or_create_franchise_leads_pipeline()
+        _pipeline_cache = get_or_create_lead_nurturing_pipeline()
     return _pipeline_cache
 
 
@@ -44,6 +86,101 @@ def _clear_pipeline_cache():
     """Clear the pipeline cache (useful for testing)."""
     global _pipeline_cache
     _pipeline_cache = None
+
+
+def _format_custom_field_value(value: Any, data_type: str) -> Optional[str]:
+    """
+    Format a value for GHL custom field.
+    
+    - Booleans become "Yes"/"No"
+    - Lists become newline-separated strings
+    - Dicts (territories) are formatted as text
+    - Numbers stay as numbers for MONETARY type
+    """
+    if value is None:
+        return None
+    
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    
+    if isinstance(value, list):
+        if not value:
+            return None
+        # Handle list of dicts (territories)
+        if isinstance(value[0], dict):
+            formatted_items = []
+            for item in value:
+                if isinstance(item, dict):
+                    loc = item.get("location", "")
+                    state = item.get("state_code", "")
+                    formatted_items.append(f"{loc}, {state}" if state else loc)
+                else:
+                    formatted_items.append(str(item))
+            return "\n".join(formatted_items)
+        # Simple list of strings
+        return "\n".join(str(item) for item in value)
+    
+    if isinstance(value, (int, float)) and data_type == "MONETARY":
+        return value  # Keep as number for monetary
+    
+    return str(value)
+
+
+def _build_custom_fields(profile_data: Dict, lead: Dict) -> List[Dict]:
+    """
+    Build GHL custom fields array from profile_data and lead.
+    
+    Returns list of {"id": field_id, "value": field_value} dicts.
+    """
+    custom_fields = []
+    
+    # Process profile_data fields
+    for key, (field_name, data_type) in CUSTOM_FIELD_MAPPINGS.items():
+        value = profile_data.get(key)
+        formatted_value = _format_custom_field_value(value, data_type)
+        
+        if formatted_value is not None:
+            field_id = get_or_create_custom_field(
+                name=field_name,
+                data_type=data_type,
+                model="contact"
+            )
+            custom_fields.append({
+                "id": field_id,
+                "value": formatted_value,
+            })
+    
+    # Process lead-level fields
+    for key, (field_name, data_type) in LEAD_FIELD_MAPPINGS.items():
+        value = lead.get(key)
+        formatted_value = _format_custom_field_value(value, data_type)
+        
+        if formatted_value is not None:
+            field_id = get_or_create_custom_field(
+                name=field_name,
+                data_type=data_type,
+                model="contact"
+            )
+            custom_fields.append({
+                "id": field_id,
+                "value": formatted_value,
+            })
+    
+    return custom_fields
+
+
+def _get_opportunity_status(workflow_status: str) -> str:
+    """
+    Map workflow_status to GHL opportunity status.
+    
+    Returns "won", "lost", or "open".
+    """
+    if workflow_status == "closed_won":
+        return "won"
+    elif workflow_status == "disqualified":
+        return "lost"
+    else:
+        return "open"
 
 
 def _parse_location(location: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
@@ -80,8 +217,9 @@ def sync_lead_to_ghl(lead_id: int) -> Dict:
     Sync a lead to GoHighLevel.
     
     1. Find or create contact by email OR phone
-    2. Create or update opportunity in pipeline
-    3. Update lead with GHL IDs and sync timestamp
+    2. Build and attach custom fields from profile_data
+    3. Create or update opportunity in pipeline
+    4. Update lead with GHL IDs and sync timestamp
     
     Returns dict with sync results:
     {
@@ -118,7 +256,7 @@ def sync_lead_to_ghl(lead_id: int) -> Dict:
         location = profile_data.get("location")
         state_code = profile_data.get("state_code")
         liquidity = profile_data.get("liquidity")
-        workflow_status = lead.get("workflow_status", "new")
+        workflow_status = lead.get("workflow_status", "new_lead")
         
         # Parse location into city/state
         city, state = _parse_location(location)
@@ -136,10 +274,13 @@ def sync_lead_to_ghl(lead_id: int) -> Dict:
                 "ghl_contact_id": None,
                 "ghl_opportunity_id": None,
                 "action": "error",
-                "error": "Failed to get or create pipeline",
+                "error": "Failed to get Lead Nurturing pipeline",
             }
         
-        # 3. Find or create contact
+        # 3. Build custom fields from profile_data
+        custom_fields = _build_custom_fields(profile_data, lead)
+        
+        # 4. Find or create contact
         existing_ghl_contact_id = lead.get("ghl_contact_id")
         contact = None
         contact_action = "skipped"
@@ -148,13 +289,14 @@ def sync_lead_to_ghl(lead_id: int) -> Dict:
             # We already have a GHL contact ID - verify it still exists
             contact = get_contact(existing_ghl_contact_id)
             if contact:
-                # Update existing contact
+                # Update existing contact with custom fields
                 contact = update_contact(
                     contact_id=existing_ghl_contact_id,
                     first_name=candidate_name.split()[0] if candidate_name else None,
                     last_name=" ".join(candidate_name.split()[1:]) if candidate_name and len(candidate_name.split()) > 1 else None,
                     city=city,
                     state=state,
+                    custom_fields=custom_fields if custom_fields else None,
                 )
                 contact_action = "updated"
         
@@ -164,19 +306,22 @@ def sync_lead_to_ghl(lead_id: int) -> Dict:
             
             if contact:
                 contact_action = "found"
-                # Update tags to ensure the contact is marked as a lead
+                # Update tags and custom fields
                 existing_tags = contact.get("tags", []) or []
+                updated_tags = list(existing_tags)
                 if "FranchisesGlobal Lead" not in existing_tags:
-                    updated_tags = list(existing_tags) + ["FranchisesGlobal Lead"]
-                    contact = update_contact(
-                        contact_id=contact.get("id"),
-                        tags=updated_tags,
-                    )
+                    updated_tags.append("FranchisesGlobal Lead")
+                
+                contact = update_contact(
+                    contact_id=contact.get("id"),
+                    tags=updated_tags,
+                    custom_fields=custom_fields if custom_fields else None,
+                )
+                contact_action = "updated"
             else:
-                # Create new contact with distinguishing tags
-                # These tags differentiate leads from Franserve contacts (franchise consultants)
+                # Create new contact with distinguishing tags and custom fields
                 tags = [
-                    "FranchisesGlobal Lead",  # Primary identifier - distinguishes from Franserve contacts
+                    "FranchisesGlobal Lead",  # Primary identifier
                     f"Tier: {lead.get('qualification_status', 'unknown')}",
                 ]
                 
@@ -187,7 +332,8 @@ def sync_lead_to_ghl(lead_id: int) -> Dict:
                     city=city,
                     state=state,
                     tags=tags,
-                    source="FranchisesGlobal Lead",  # Clear source attribution
+                    custom_fields=custom_fields if custom_fields else None,
+                    source="FranchisesGlobal Lead",
                 )
                 contact_action = "created"
         
@@ -202,7 +348,7 @@ def sync_lead_to_ghl(lead_id: int) -> Dict:
                 "error": "Failed to get or create contact",
             }
         
-        # 4. Find or create opportunity
+        # 5. Find or create opportunity
         existing_ghl_opportunity_id = lead.get("ghl_opportunity_id")
         opportunity = None
         opportunity_action = "skipped"
@@ -215,16 +361,22 @@ def sync_lead_to_ghl(lead_id: int) -> Dict:
             if stages:
                 stage_id = stages[0].get("id")
         
+        # Get opportunity status based on workflow
+        opp_status = _get_opportunity_status(workflow_status)
+        
         if existing_ghl_opportunity_id:
             # We already have a GHL opportunity ID - verify it still exists
             opportunity = get_opportunity(existing_ghl_opportunity_id)
             if opportunity:
-                # Update opportunity stage
+                # Update opportunity stage and status
                 current_stage_id = opportunity.get("pipelineStageId")
-                if current_stage_id != stage_id:
+                current_status = opportunity.get("status")
+                
+                if current_stage_id != stage_id or current_status != opp_status:
                     opportunity = update_opportunity(
                         opportunity_id=existing_ghl_opportunity_id,
                         stage_id=stage_id,
+                        status=opp_status,
                     )
                     opportunity_action = "updated"
                 else:
@@ -236,12 +388,15 @@ def sync_lead_to_ghl(lead_id: int) -> Dict:
             
             if opportunity:
                 opportunity_action = "found"
-                # Update stage if different
+                # Update stage and status if different
                 current_stage_id = opportunity.get("pipelineStageId")
-                if current_stage_id != stage_id:
+                current_status = opportunity.get("status")
+                
+                if current_stage_id != stage_id or current_status != opp_status:
                     opportunity = update_opportunity(
                         opportunity_id=opportunity.get("id"),
                         stage_id=stage_id,
+                        status=opp_status,
                     )
                     opportunity_action = "updated"
             else:
@@ -257,7 +412,7 @@ def sync_lead_to_ghl(lead_id: int) -> Dict:
                     stage_id=stage_id,
                     name=opportunity_name,
                     monetary_value=monetary_value,
-                    status="open",
+                    status=opp_status,
                 )
                 opportunity_action = "created"
         
@@ -272,7 +427,7 @@ def sync_lead_to_ghl(lead_id: int) -> Dict:
                 "error": "Failed to get or create opportunity",
             }
         
-        # 5. Update lead with GHL IDs and sync timestamp
+        # 6. Update lead with GHL IDs and sync timestamp
         now = datetime.now(timezone.utc).isoformat()
         supabase.table("leads").update({
             "ghl_contact_id": contact_id,
@@ -343,7 +498,7 @@ def sync_from_ghl(lead_id: int) -> Dict:
         
         lead = lead_resp.data[0]
         opportunity_id = lead.get("ghl_opportunity_id")
-        current_workflow_status = lead.get("workflow_status", "new")
+        current_workflow_status = lead.get("workflow_status", "new_lead")
         
         if not opportunity_id:
             return {
@@ -510,3 +665,4 @@ def two_way_sync_lead(lead_id: int) -> Dict:
         "push": push_result,
         "success": push_result.get("success", False),
     }
+

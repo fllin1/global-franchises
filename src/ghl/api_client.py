@@ -260,6 +260,88 @@ def update_contact(
     return result.get("contact", result)
 
 
+# ---------- Custom Field Operations ----------
+
+# Cache for custom field IDs to avoid repeated API calls
+_custom_field_cache: Dict[str, str] = {}  # name -> id
+
+
+def list_custom_fields(model: str = "contact") -> List[Dict]:
+    """
+    List all custom fields for a given model (contact or opportunity).
+    
+    Returns list of custom field objects with id, name, dataType, etc.
+    """
+    params = {"model": model}
+    result = _api_request("GET", f"/locations/{LOCATION_ID}/customFields", params=params)
+    return result.get("customFields", [])
+
+
+def create_custom_field(
+    name: str,
+    data_type: str,
+    model: str = "contact",
+) -> Dict:
+    """
+    Create a new custom field.
+    
+    Args:
+        name: Display name of the custom field (e.g., "FG Liquidity")
+        data_type: Field type - SINGLE_LINE_TEXT, MULTI_LINE_TEXT, MONETARY, NUMBER, etc.
+        model: Object type - "contact" or "opportunity"
+    
+    Returns the created custom field object.
+    """
+    body = {
+        "name": name,
+        "dataType": data_type,
+        "model": model,
+    }
+    
+    result = _api_request("POST", f"/locations/{LOCATION_ID}/customFields", json_body=body)
+    return result.get("customField", result)
+
+
+def get_or_create_custom_field(
+    name: str,
+    data_type: str,
+    model: str = "contact",
+) -> str:
+    """
+    Get custom field ID by name, creating it if it doesn't exist.
+    
+    Uses caching to avoid repeated API calls.
+    
+    Returns the custom field ID.
+    """
+    cache_key = f"{model}:{name}"
+    
+    # Check cache first
+    if cache_key in _custom_field_cache:
+        return _custom_field_cache[cache_key]
+    
+    # List existing fields and look for match
+    fields = list_custom_fields(model=model)
+    for field in fields:
+        if field.get("name") == name:
+            field_id = field.get("id")
+            _custom_field_cache[cache_key] = field_id
+            return field_id
+    
+    # Create new field
+    new_field = create_custom_field(name=name, data_type=data_type, model=model)
+    field_id = new_field.get("id")
+    _custom_field_cache[cache_key] = field_id
+    logger.info(f"Created custom field '{name}' ({data_type}): {field_id}")
+    return field_id
+
+
+def clear_custom_field_cache():
+    """Clear the custom field cache (useful for testing)."""
+    global _custom_field_cache
+    _custom_field_cache = {}
+
+
 # ---------- Pipeline Operations ----------
 
 def list_pipelines() -> List[Dict]:
@@ -296,40 +378,43 @@ def create_pipeline(
     return result.get("pipeline", result)
 
 
-def get_or_create_franchise_leads_pipeline() -> Dict:
+def get_or_create_lead_nurturing_pipeline() -> Dict:
     """
-    Get or create the "Franchise Leads" pipeline with standard stages.
+    Get the existing "Lead Nurturing" pipeline from GHL.
     
-    Stages match the workflow_status values in the leads table:
-    - New Lead (new)
-    - Contacted (contacted)
-    - Qualified (qualified)
-    - Presented (presented)
-    - Closed Won (closed_won)
-    - Closed Lost (closed_lost)
+    Stages in Lead Nurturing pipeline:
+    - New Lead
+    - Initial SMS Sent
+    - SMS Engaged - Scheduling
+    - Deeper Dive Scheduled
+    - Needs Manual Follow-up
+    - Qualified - Post Deeper Dive
+    - Franchise(s) Presented
+    - Funding Intro Made
+    - Franchisor Intro Made
+    - Closed - Won
+    - Disqualified
+    - Nurturing - Long Term
     
     Returns the pipeline with stages (including stage IDs).
+    Raises RuntimeError if pipeline not found (must be created manually in GHL).
     """
-    # Check if pipeline already exists
     pipelines = list_pipelines()
     for pipeline in pipelines:
-        if pipeline.get("name") == "Franchise Leads":
-            logger.info(f"Found existing 'Franchise Leads' pipeline: {pipeline.get('id')}")
+        if pipeline.get("name") == "Lead Nurturing":
+            logger.info(f"Found 'Lead Nurturing' pipeline: {pipeline.get('id')}")
             return pipeline
     
-    # Create new pipeline with stages
-    stages = [
-        {"name": "New Lead"},
-        {"name": "Contacted"},
-        {"name": "Qualified"},
-        {"name": "Presented"},
-        {"name": "Closed Won"},
-        {"name": "Closed Lost"},
-    ]
-    
-    pipeline = create_pipeline(name="Franchise Leads", stages=stages)
-    logger.info(f"Created 'Franchise Leads' pipeline: {pipeline.get('id')}")
-    return pipeline
+    raise RuntimeError(
+        "Lead Nurturing pipeline not found in GHL. "
+        "Please create it manually in GoHighLevel with the required stages."
+    )
+
+
+# Keep alias for backwards compatibility
+def get_or_create_franchise_leads_pipeline() -> Dict:
+    """Deprecated: Use get_or_create_lead_nurturing_pipeline instead."""
+    return get_or_create_lead_nurturing_pipeline()
 
 
 # ---------- Opportunity Operations ----------
@@ -429,14 +514,20 @@ def find_opportunity_for_contact(contact_id: str, pipeline_id: str) -> Optional[
 
 # ---------- Workflow Status Mapping ----------
 
-# Map lead workflow_status to GHL stage names
+# Map lead workflow_status to GHL "Lead Nurturing" pipeline stage names
 WORKFLOW_TO_STAGE = {
-    "new": "New Lead",
-    "contacted": "Contacted",
-    "qualified": "Qualified",
-    "presented": "Presented",
-    "closed_won": "Closed Won",
-    "closed_lost": "Closed Lost",
+    "new_lead": "New Lead",
+    "initial_sms_sent": "Initial SMS Sent",
+    "sms_engaged_scheduling": "SMS Engaged - Scheduling",
+    "deeper_dive_scheduled": "Deeper Dive Scheduled",
+    "needs_manual_followup": "Needs Manual Follow-up",
+    "qualified_post_deeper_dive": "Qualified - Post Deeper Dive",
+    "franchises_presented": "Franchise(s) Presented",
+    "funding_intro_made": "Funding Intro Made",
+    "franchisor_intro_made": "Franchisor Intro Made",
+    "closed_won": "Closed - Won",
+    "disqualified": "Disqualified",
+    "nurturing_long_term": "Nurturing - Long Term",
 }
 
 # Reverse mapping
@@ -474,3 +565,4 @@ def get_workflow_status_for_stage(pipeline: Dict, stage_id: str) -> Optional[str
             return STAGE_TO_WORKFLOW.get(stage_name)
     
     return None
+

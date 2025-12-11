@@ -19,28 +19,38 @@ from src.ghl.api_client import (
     create_contact,
     update_contact,
     list_pipelines,
-    get_or_create_franchise_leads_pipeline,
+    get_or_create_lead_nurturing_pipeline,
     create_opportunity,
     update_opportunity,
     get_stage_id_for_workflow_status,
     get_workflow_status_for_stage,
+    list_custom_fields,
+    create_custom_field,
+    get_or_create_custom_field,
+    clear_custom_field_cache,
     WORKFLOW_TO_STAGE,
     STAGE_TO_WORKFLOW,
 )
 
 
 class TestWorkflowStatusMapping:
-    """Test workflow status to stage mapping."""
+    """Test workflow status to stage mapping for Lead Nurturing pipeline."""
 
     def test_workflow_to_stage_mapping(self):
-        """All workflow statuses should have a stage mapping."""
+        """All workflow statuses should have a stage mapping matching GHL Lead Nurturing pipeline."""
         expected_mappings = {
-            "new": "New Lead",
-            "contacted": "Contacted",
-            "qualified": "Qualified",
-            "presented": "Presented",
-            "closed_won": "Closed Won",
-            "closed_lost": "Closed Lost",
+            "new_lead": "New Lead",
+            "initial_sms_sent": "Initial SMS Sent",
+            "sms_engaged_scheduling": "SMS Engaged - Scheduling",
+            "deeper_dive_scheduled": "Deeper Dive Scheduled",
+            "needs_manual_followup": "Needs Manual Follow-up",
+            "qualified_post_deeper_dive": "Qualified - Post Deeper Dive",
+            "franchises_presented": "Franchise(s) Presented",
+            "funding_intro_made": "Funding Intro Made",
+            "franchisor_intro_made": "Franchisor Intro Made",
+            "closed_won": "Closed - Won",
+            "disqualified": "Disqualified",
+            "nurturing_long_term": "Nurturing - Long Term",
         }
         
         assert WORKFLOW_TO_STAGE == expected_mappings
@@ -48,12 +58,18 @@ class TestWorkflowStatusMapping:
     def test_stage_to_workflow_mapping(self):
         """All stages should map back to workflow statuses."""
         expected_mappings = {
-            "New Lead": "new",
-            "Contacted": "contacted",
-            "Qualified": "qualified",
-            "Presented": "presented",
-            "Closed Won": "closed_won",
-            "Closed Lost": "closed_lost",
+            "New Lead": "new_lead",
+            "Initial SMS Sent": "initial_sms_sent",
+            "SMS Engaged - Scheduling": "sms_engaged_scheduling",
+            "Deeper Dive Scheduled": "deeper_dive_scheduled",
+            "Needs Manual Follow-up": "needs_manual_followup",
+            "Qualified - Post Deeper Dive": "qualified_post_deeper_dive",
+            "Franchise(s) Presented": "franchises_presented",
+            "Funding Intro Made": "funding_intro_made",
+            "Franchisor Intro Made": "franchisor_intro_made",
+            "Closed - Won": "closed_won",
+            "Disqualified": "disqualified",
+            "Nurturing - Long Term": "nurturing_long_term",
         }
         
         assert STAGE_TO_WORKFLOW == expected_mappings
@@ -64,14 +80,16 @@ class TestWorkflowStatusMapping:
             "id": "pipeline-123",
             "stages": [
                 {"id": "stage-1", "name": "New Lead"},
-                {"id": "stage-2", "name": "Contacted"},
-                {"id": "stage-3", "name": "Qualified"},
+                {"id": "stage-2", "name": "Initial SMS Sent"},
+                {"id": "stage-3", "name": "Qualified - Post Deeper Dive"},
+                {"id": "stage-4", "name": "Closed - Won"},
             ]
         }
         
-        assert get_stage_id_for_workflow_status(pipeline, "new") == "stage-1"
-        assert get_stage_id_for_workflow_status(pipeline, "contacted") == "stage-2"
-        assert get_stage_id_for_workflow_status(pipeline, "qualified") == "stage-3"
+        assert get_stage_id_for_workflow_status(pipeline, "new_lead") == "stage-1"
+        assert get_stage_id_for_workflow_status(pipeline, "initial_sms_sent") == "stage-2"
+        assert get_stage_id_for_workflow_status(pipeline, "qualified_post_deeper_dive") == "stage-3"
+        assert get_stage_id_for_workflow_status(pipeline, "closed_won") == "stage-4"
         assert get_stage_id_for_workflow_status(pipeline, "unknown") is None
 
     def test_get_workflow_status_for_stage(self):
@@ -80,12 +98,14 @@ class TestWorkflowStatusMapping:
             "id": "pipeline-123",
             "stages": [
                 {"id": "stage-1", "name": "New Lead"},
-                {"id": "stage-2", "name": "Contacted"},
+                {"id": "stage-2", "name": "Initial SMS Sent"},
+                {"id": "stage-3", "name": "Disqualified"},
             ]
         }
         
-        assert get_workflow_status_for_stage(pipeline, "stage-1") == "new"
-        assert get_workflow_status_for_stage(pipeline, "stage-2") == "contacted"
+        assert get_workflow_status_for_stage(pipeline, "stage-1") == "new_lead"
+        assert get_workflow_status_for_stage(pipeline, "stage-2") == "initial_sms_sent"
+        assert get_workflow_status_for_stage(pipeline, "stage-3") == "disqualified"
         assert get_workflow_status_for_stage(pipeline, "stage-unknown") is None
 
 
@@ -206,7 +226,7 @@ class TestPipelineOperations:
         mock_request.return_value = {
             "pipelines": [
                 {"id": "pipeline-1", "name": "Sales Pipeline"},
-                {"id": "pipeline-2", "name": "Franchise Leads"}
+                {"id": "pipeline-2", "name": "Lead Nurturing"}
             ]
         }
         
@@ -216,44 +236,28 @@ class TestPipelineOperations:
         assert result[0]["name"] == "Sales Pipeline"
 
     @patch("src.ghl.api_client._api_request")
-    def test_get_or_create_franchise_leads_pipeline_existing(self, mock_request):
-        """Should return existing Franchise Leads pipeline."""
+    def test_get_or_create_lead_nurturing_pipeline_existing(self, mock_request):
+        """Should return existing Lead Nurturing pipeline."""
         mock_request.return_value = {
             "pipelines": [
-                {"id": "pipeline-1", "name": "Franchise Leads", "stages": []}
+                {"id": "pipeline-1", "name": "Lead Nurturing", "stages": []}
             ]
         }
         
-        result = get_or_create_franchise_leads_pipeline()
+        result = get_or_create_lead_nurturing_pipeline()
         
         assert result["id"] == "pipeline-1"
-        assert result["name"] == "Franchise Leads"
+        assert result["name"] == "Lead Nurturing"
         # Should only call list_pipelines, not create
         assert mock_request.call_count == 1
 
     @patch("src.ghl.api_client._api_request")
-    def test_get_or_create_franchise_leads_pipeline_creates_new(self, mock_request):
-        """Should create new Franchise Leads pipeline if not exists."""
-        # First call returns empty list, second call creates pipeline
-        mock_request.side_effect = [
-            {"pipelines": []},
-            {
-                "pipeline": {
-                    "id": "new-pipeline-1",
-                    "name": "Franchise Leads",
-                    "stages": [
-                        {"id": "stage-1", "name": "New Lead"},
-                        {"id": "stage-2", "name": "Contacted"},
-                    ]
-                }
-            }
-        ]
+    def test_get_or_create_lead_nurturing_pipeline_not_found_raises(self, mock_request):
+        """Should raise error if Lead Nurturing pipeline not found."""
+        mock_request.return_value = {"pipelines": []}
         
-        result = get_or_create_franchise_leads_pipeline()
-        
-        assert result["id"] == "new-pipeline-1"
-        assert result["name"] == "Franchise Leads"
-        assert mock_request.call_count == 2
+        with pytest.raises(RuntimeError, match="Lead Nurturing pipeline not found"):
+            get_or_create_lead_nurturing_pipeline()
 
 
 class TestOpportunityOperations:
@@ -302,3 +306,87 @@ class TestOpportunityOperations:
         
         assert result["id"] == "opp-1"
         assert result["pipelineStageId"] == "stage-2"
+
+
+class TestCustomFieldOperations:
+    """Test custom field API operations."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        """Clear custom field cache before each test."""
+        clear_custom_field_cache()
+
+    @patch("src.ghl.api_client._api_request")
+    def test_list_custom_fields(self, mock_request):
+        """Should list all custom fields for contacts."""
+        mock_request.return_value = {
+            "customFields": [
+                {"id": "cf-1", "name": "FG Liquidity", "dataType": "MONETARY"},
+                {"id": "cf-2", "name": "FG Location", "dataType": "SINGLE_LINE_TEXT"},
+            ]
+        }
+        
+        result = list_custom_fields(model="contact")
+        
+        assert len(result) == 2
+        assert result[0]["name"] == "FG Liquidity"
+        mock_request.assert_called_once()
+
+    @patch("src.ghl.api_client._api_request")
+    def test_create_custom_field(self, mock_request):
+        """Should create a new custom field."""
+        mock_request.return_value = {
+            "customField": {
+                "id": "cf-new",
+                "name": "FG Net Worth",
+                "dataType": "MONETARY",
+            }
+        }
+        
+        result = create_custom_field(
+            name="FG Net Worth",
+            data_type="MONETARY",
+            model="contact"
+        )
+        
+        assert result["id"] == "cf-new"
+        assert result["name"] == "FG Net Worth"
+        mock_request.assert_called_once()
+
+    @patch("src.ghl.api_client._api_request")
+    def test_get_or_create_custom_field_exists(self, mock_request):
+        """Should return existing custom field ID if already exists."""
+        mock_request.return_value = {
+            "customFields": [
+                {"id": "cf-existing", "name": "FG Liquidity", "dataType": "MONETARY"},
+            ]
+        }
+        
+        result = get_or_create_custom_field(
+            name="FG Liquidity",
+            data_type="MONETARY",
+            model="contact"
+        )
+        
+        assert result == "cf-existing"
+        # Should only call list, not create
+        assert mock_request.call_count == 1
+
+    @patch("src.ghl.api_client._api_request")
+    def test_get_or_create_custom_field_creates_new(self, mock_request):
+        """Should create custom field if not exists."""
+        # First call returns empty list, second call creates field
+        mock_request.side_effect = [
+            {"customFields": []},
+            {"customField": {"id": "cf-new", "name": "FG Liquidity", "dataType": "MONETARY"}}
+        ]
+        
+        result = get_or_create_custom_field(
+            name="FG Liquidity",
+            data_type="MONETARY",
+            model="contact"
+        )
+        
+        assert result == "cf-new"
+        assert mock_request.call_count == 2
+

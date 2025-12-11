@@ -7,9 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2025-12-11] - GoHighLevel Two-Way Lead Sync
+## [2025-12-11] - Enhanced GHL Sync with Custom Fields & Lead Nurturing Pipeline
 
 ### Added
+- **Custom Fields API Support** (`src/ghl/api_client.py`):
+  - `list_custom_fields(model)`: List existing custom fields for contacts/opportunities
+  - `create_custom_field(name, data_type, model)`: Create new custom fields in GHL
+  - `get_or_create_custom_field()`: Get or create custom field by name with caching
+  - `clear_custom_field_cache()`: Clear cache for testing
+
+- **Full Profile Data Sync to GHL** (`src/ghl/sync_service.py`):
+  - `_build_custom_fields()`: Builds custom fields array from lead profile_data
+  - `_get_opportunity_status()`: Maps workflow_status to opportunity status (open/won/lost)
+  - `CUSTOM_FIELD_MAPPINGS`: 21 profile fields mapped to GHL custom fields:
+    - Financials: liquidity, investment_cap, net_worth, investment_source
+    - Location: location, state_code, territories
+    - Preferences: role, business_model, staff, home_based, absentee, multi_unit
+    - Motives: trigger_event, goals, timeline, experience_level, current_status
+    - Sync: qualification_tier
+
+- **Database Migration** (`docs/database/expand_workflow_status_for_ghl.sql`):
+  - Expanded `workflow_status` CHECK constraint to 12 GHL pipeline stages
+  - New values: new_lead, initial_sms_sent, sms_engaged_scheduling, deeper_dive_scheduled, needs_manual_followup, qualified_post_deeper_dive, franchises_presented, funding_intro_made, franchisor_intro_made, closed_won, disqualified, nurturing_long_term
+  - Migration script for existing data
+
+### Changed
+- **Pipeline Integration**: Now uses existing "Lead Nurturing" pipeline instead of creating "Franchise Leads"
+- **Stage Mapping**: Updated `WORKFLOW_TO_STAGE` for all 12 Lead Nurturing pipeline stages
+- **Opportunity Status**: Maps closed_won → "won", disqualified → "lost", others → "open"
+- **Contact Sync**: Now includes custom fields with all profile data
+- **Tests**: Updated all GHL tests for new stage mappings and custom fields (50 tests passing)
+
+### Previous (2025-12-11)
 - **GHL API Client** (`src/ghl/api_client.py`):
   - Contact operations: search, find, create, update contacts
   - Pipeline operations: list, create, get_or_create "Franchise Leads" pipeline
